@@ -1,0 +1,15 @@
+venv/
+ENV/
+env/
+.env
+
+logs/
+*.log
+
+.DS_Store
+.DS_Store?
+
+# __pycache__
+*.py[cod]
+
+config.py
