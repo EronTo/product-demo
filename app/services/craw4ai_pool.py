@@ -440,10 +440,10 @@ class CrawlerPool:
                     if hasattr(result, 'markdown') and result.markdown:
                         if hasattr(result.markdown, 'raw_markdown'):
                             markdown_content = result.markdown.raw_markdown
-                            word_count = len(markdown_content.split())
+                            word_count = len(markdown_content)
                         else:
                             markdown_content = str(result.markdown)
-                            word_count = len(markdown_content.split())
+                            word_count = len(markdown_content)
                     
                     # Cache the result
                     if markdown_content and hasattr(result, 'url'):
