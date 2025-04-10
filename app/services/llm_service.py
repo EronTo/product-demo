@@ -263,20 +263,21 @@ class LLMService:
             product = result["product"]
             requirements = result["requirements"]
             
-            prompt = f'"{product}" 推荐 ('
+            prompt = f'"{product}" 推荐'
+            # prompt = f'"{product}" 推荐 ('
             
-            for i, req in enumerate(requirements):
-                if i != 0:
-                    prompt += f" OR {req}"
-                else:
-                    prompt += f"{req}"
+            # for i, req in enumerate(requirements):
+            #     if i != 0:
+            #         prompt += f" OR {req}"
+            #     else:
+            #         prompt += f"{req}"
             
-            if requirements:
-                prompt += ' OR ""'
-            else:
-                prompt += '""'
+            # if requirements:
+            #     prompt += ' OR ""'
+            # else:
+            #     prompt += '""'
             
-            prompt += ')'
+            # prompt += ')'
             
             return prompt
         except Exception as e:
