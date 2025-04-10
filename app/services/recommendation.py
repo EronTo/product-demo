@@ -177,7 +177,7 @@ class RecommendationService:
                 results = await self.crawler_pool.crawl_fastest(urls, 3, 3000)
                 for result in results:
                     if result is not None and result.markdown.raw_markdown is not None and len(result.markdown.raw_markdown) > 100:
-                        web_search_results.append(result.markdown.raw_markdown[5000])
+                        web_search_results.append(result.markdown.raw_markdown[:5000])
             except Exception as crawl_error:
                 logger.error(f"网页爬取失败: {str(crawl_error)}")
                 raise crawl_error
