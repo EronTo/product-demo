@@ -452,7 +452,7 @@ class CrawlerPool:
                     # Add to result collections
                     result.word_count = word_count
                     all_results.append(result)
-                    
+                    print(f"Result for {task.url} has {word_count} words")
                     if word_count >= min_word_count:
                         valid_results.append(result)
                         logger.info(f"Found valid result for {task.url} with {word_count} words in {time.time() - start_time:.2f}s")
@@ -494,6 +494,10 @@ class CrawlerPool:
             markdown_content: Markdown content to save
         """
         try:
+            if len(markdown_content) <= 100:
+                logger.info(f"Skipping cache for {result.url} - content too short ({len(markdown_content)} chars)")
+                return
+                
             url_hash = hashlib.md5(result.url.encode()).hexdigest()
             cache_filename = f"{url_hash}.json"
             cache_file = os.path.join(self.cache_dir, cache_filename)
@@ -559,10 +563,10 @@ async def main():
         # Example URL to crawl
         urls = [
             "https://zhuanlan.zhihu.com/p/262459884",
-            "https://github.com/unclecode/crawl4ai?tab=readme-ov-file",
-            "https://zhuanlan.zhihu.com/p/27956936120"
+            # "https://github.com/unclecode/crawl4ai?tab=readme-ov-file",
+            # "https://zhuanlan.zhihu.com/p/27956936120"
         ]
-        results = await pool.crawl_fastest(urls, count=1, min_word_count=1000)
+        results = await pool.crawl_fastest(urls, count=1, min_word_count=100000)
         for i, result in enumerate(results):
             print(result.markdown.raw_markdown)
             # if result.success:
