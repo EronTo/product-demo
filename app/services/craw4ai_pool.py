@@ -1,11 +1,15 @@
 import asyncio
 import logging
 import time
-from typing import List, Any, Optional
-
+from typing import List, Any, Optional, Tuple, Dict
+import os
+import hashlib
+import json
+import aiofiles
 from crawl4ai import AsyncWebCrawler, BrowserConfig, CrawlerRunConfig, CacheMode
 from crawl4ai.markdown_generation_strategy import DefaultMarkdownGenerator
 from crawl4ai.async_dispatcher import MemoryAdaptiveDispatcher
+from crawl4ai.content_scraping_strategy import LXMLWebScrapingStrategy
 
 
 logger = logging.getLogger(__name__)
@@ -20,7 +24,8 @@ class CrawlerPool:
         n_crawlers: int = 10,
         browser_config: Optional[BrowserConfig] = None,
         crawler_run_config: Optional[CrawlerRunConfig] = None,
-        dispatcher: Optional[MemoryAdaptiveDispatcher] = None
+        dispatcher: Optional[MemoryAdaptiveDispatcher] = None,
+        cache_dir: Optional[str] = None
     ):
         """
         Initialize crawler pool with n crawler instances.
@@ -39,7 +44,31 @@ class CrawlerPool:
         self.available_crawlers = []
         self.lock = asyncio.Lock()
         self.initialized = False
+
+        if cache_dir is None:
+            self.cache_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cache")
+        else:
+            self.cache_dir = cache_dir
+            
+        if not os.path.exists(self.cache_dir):
+            os.makedirs(self.cache_dir)
+        
+        self.cache_files_map = {}
+        self._load_cache_files_map()
+
+    def _load_cache_files_map(self):
+        try:
+            if os.path.exists(self.cache_dir):
+                for filename in os.listdir(self.cache_dir):
+                    if filename.endswith('.json'):
+                        self.cache_files_map[filename] = True
+                logger.info(f"Loaded {len(self.cache_files_map)} cache file names into memory")
+        except Exception as e:
+            logger.error(f"Error loading cache files: {e}")
     
+    def add_to_cache_map(self, filename):
+        self.cache_files_map[filename] = True    
+
     @staticmethod
     def _default_browser_config() -> BrowserConfig:
         """Create default browser configuration."""
@@ -62,7 +91,6 @@ class CrawlerPool:
     
     @staticmethod
     def _default_crawler_run_config() -> CrawlerRunConfig:
-        """Create default crawler run configuration."""
         markdown_generator = DefaultMarkdownGenerator(
             options={
                 "ignore_images": True,
@@ -78,9 +106,9 @@ class CrawlerPool:
             excluded_tags=["script", "style", "svg", "img", "iframe", "noscript", "footer", "header", "nav", "aside"],
             word_count_threshold=30,
             markdown_generator=markdown_generator,
-            stream=False
+            stream=True,
+            scraping_strategy=LXMLWebScrapingStrategy()  # 使用LXML策略提高性能
         )
-        
     @staticmethod
     def _default_dispatcher() -> MemoryAdaptiveDispatcher:
         """Create default memory adaptive dispatcher."""
@@ -179,6 +207,319 @@ class CrawlerPool:
         return results
 
 
+    async def crawl_fastest(self, urls: List[str], count: int = 1, min_word_count: int = 100) -> List[Any]:
+        """
+        Crawl multiple URLs and return the fastest results that meet word count criteria.
+        Uses local file cache when available to improve performance.
+        
+        Args:
+            urls: List of URLs to crawl
+            count: Number of results to return
+            min_word_count: Minimum word count required for a valid result
+                    
+        Returns:
+            List of fastest results meeting the word count criteria or top results by word count
+        """
+        # Initialize crawler if needed
+        if not self.initialized:
+            await self.init()
+        
+        start_time = time.time()
+        valid_results = [] 
+        all_results = []  
+        
+        # --- STEP 1: Prepare URLs and hash mapping ---
+        url_hash_map = {url: hashlib.md5(url.encode()).hexdigest() for url in urls}
+        
+        # --- STEP 2: Process cached URLs ---
+        urls_to_crawl = await self._process_cached_urls(url_hash_map, valid_results, all_results, count, min_word_count)
+        
+        # If we already have enough valid results or nothing to crawl, return results
+        if len(valid_results) >= count or not urls_to_crawl:
+            if len(valid_results) >= count:
+                return valid_results[:count]
+            else:
+                all_results.sort(key=lambda x: getattr(x, 'word_count', 0), reverse=True)
+                return all_results[:count]
+        
+        # --- STEP 3: Crawl remaining URLs ---
+        crawler = await self._get_available_crawler()
+        try:
+            # Add any new results to our collections
+            new_valid_results, new_all_results = await self._crawl_urls(
+                crawler, urls_to_crawl, min_word_count, count - len(valid_results), start_time
+            )
+            valid_results.extend(new_valid_results)
+            all_results.extend(new_all_results)
+            
+            # Return appropriate results
+            if len(valid_results) >= count:
+                return valid_results[:count]
+            else:
+                logger.info(f"Only found {len(valid_results)} valid results, returning top {count} results by word count")
+                all_results.sort(key=lambda x: getattr(x, 'word_count', 0), reverse=True)
+                return all_results[:count]
+        finally:
+            # Always release the crawler back to pool
+            await self._release_crawler(crawler)
+            
+            end_time = time.time()
+            total_time = end_time - start_time
+            logger.info(f"Fastest crawling completed in {total_time:.2f} seconds")
+
+    async def _process_cached_url(self, url: str, url_hash: str) -> Tuple[Optional[Any], int]:
+        """
+        Process a single cached URL, loading from file if available.
+        
+        Args:
+            url: The URL to process
+            url_hash: The MD5 hash of the URL
+            
+        Returns:
+            Tuple of (result object, word count) or (None, 0) if cache not found/valid
+        """
+        cache_filename = f"{url_hash}.json"
+        cache_file = os.path.join(self.cache_dir, cache_filename)
+        
+        if cache_filename not in self.cache_files_map:
+            return None, 0
+        
+        try:
+            # Try with aiofiles for async I/O
+            try:
+                async with aiofiles.open(cache_file, 'r', encoding='utf-8') as f:
+                    content = await f.read()
+                    cache_data = json.loads(content)
+            except ImportError:
+                # Fall back to sync I/O if aiofiles not available
+                with open(cache_file, 'r', encoding='utf-8') as f:
+                    cache_data = json.load(f)
+            
+            # Create result object from cache data
+            result = type('CachedResult', (), {})()
+            result.url = url
+            result.success = True
+            
+            # Add cached content to result
+            if 'markdown' in cache_data:
+                markdown_result = type('MarkdownGenerationResult', (), {})()
+                markdown_result.raw_markdown = cache_data['markdown']
+                result.markdown = markdown_result
+            
+            if 'html' in cache_data:
+                result.html = cache_data['html']
+            if 'cleaned_html' in cache_data:
+                result.cleaned_html = cache_data['cleaned_html']
+            
+            # Calculate word count
+            word_count = len(cache_data["markdown"])
+            result.word_count = word_count
+            result.from_cache = True
+            logger.info(f"Loaded from cache: {url} with {word_count} words")
+            
+            return result, word_count
+        except Exception as e:
+            logger.error(f"Error loading cache for {url}: {e}")
+            return None, 0
+
+    async def _process_cached_urls(self, url_hash_map: Dict[str, str], 
+                                valid_results: List[Any], 
+                                all_results: List[Any],
+                                count: int, 
+                                min_word_count: int) -> List[str]:
+        """
+        Process URLs that might be cached, add valid results to collections.
+        
+        Args:
+            url_hash_map: Mapping of URLs to their hash values
+            valid_results: List to store valid results (modified in-place)
+            all_results: List to store all results (modified in-place)
+            count: Number of results needed
+            min_word_count: Minimum word count threshold
+            
+        Returns:
+            List of URLs that need to be crawled (not in cache or invalid)
+        """
+        urls_to_crawl = []
+        
+        # Separate URLs with and without cache
+        urls_with_cache = []
+        
+        for url, url_hash in url_hash_map.items():
+            cache_filename = f"{url_hash}.json"
+            if cache_filename in self.cache_files_map:
+                urls_with_cache.append((url, url_hash))
+            else:
+                urls_to_crawl.append(url)
+        
+        # Process URLs with cache in batches
+        batch_size = 10
+        for i in range(0, len(urls_with_cache), batch_size):
+            batch = urls_with_cache[i:i + batch_size]
+            batch_tasks = []
+            
+            # Create tasks for this batch
+            for url, url_hash in batch:
+                task = asyncio.create_task(self._process_cached_url(url, url_hash))
+                batch_tasks.append((url, task))
+            
+            # Wait for all tasks in this batch
+            for url, task in batch_tasks:
+                try:
+                    result, word_count = await task
+                    if result:
+                        all_results.append(result)
+                        if word_count >= min_word_count:
+                            valid_results.append(result)
+                            # Return early if we have enough results
+                            if len(valid_results) >= count:
+                                logger.info(f"Found {len(valid_results)} valid results from cache, returning early.")
+                                break
+                    else:
+                        urls_to_crawl.append(url)
+                except Exception as e:
+                    logger.error(f"Error processing cache for {url}: {e}")
+                    urls_to_crawl.append(url)
+            
+            # Break early if we have enough results
+            if len(valid_results) >= count:
+                break
+        
+        return urls_to_crawl
+
+    async def _crawl_urls(self, crawler: AsyncWebCrawler, 
+                        urls: List[str], 
+                        min_word_count: int,
+                        needed_count: int,
+                        start_time: float) -> Tuple[List[Any], List[Any]]:
+        """
+        Crawl a list of URLs using the provided crawler.
+        
+        Args:
+            crawler: The crawler to use
+            urls: List of URLs to crawl
+            min_word_count: Minimum word count threshold
+            needed_count: Number of valid results needed
+            start_time: Start time for logging
+            
+        Returns:
+            Tuple of (valid_results, all_results)
+        """
+        valid_results = []
+        all_results = []
+        
+        # Create tasks for all URLs
+        tasks = []
+        for url in urls:
+            task = asyncio.create_task(crawler.arun(
+                url=url,
+                config=self.crawler_run_config
+            ))
+            task.url = url
+            tasks.append(task)
+        
+        # Wait for tasks to complete
+        pending = set(tasks)
+        
+        while pending and len(valid_results) < needed_count:
+            done, pending = await asyncio.wait(
+                pending, 
+                return_when=asyncio.FIRST_COMPLETED,
+                timeout=None
+            )
+            
+            # Process completed tasks
+            for task in done:
+                try:
+                    result = task.result()
+                    
+                    # Extract markdown content and calculate word count
+                    word_count = 0
+                    markdown_content = None
+                    
+                    if hasattr(result, 'markdown') and result.markdown:
+                        if hasattr(result.markdown, 'raw_markdown'):
+                            markdown_content = result.markdown.raw_markdown
+                            word_count = len(markdown_content.split())
+                        else:
+                            markdown_content = str(result.markdown)
+                            word_count = len(markdown_content.split())
+                    
+                    # Cache the result
+                    if markdown_content and hasattr(result, 'url'):
+                        await self._cache_result(result, markdown_content)
+                    
+                    # Add to result collections
+                    result.word_count = word_count
+                    all_results.append(result)
+                    
+                    if word_count >= min_word_count:
+                        valid_results.append(result)
+                        logger.info(f"Found valid result for {task.url} with {word_count} words in {time.time() - start_time:.2f}s")
+                    else:
+                        logger.info(f"Result for {task.url} has only {word_count} words, minimum required is {min_word_count}")
+                    
+                    # Break early if we have enough results
+                    if len(valid_results) >= needed_count:
+                        break
+                except Exception as e:
+                    logger.error(f"Error crawling URL {task.url}: {e}")
+            
+            # Break early if we have enough results
+            if len(valid_results) >= needed_count:
+                break
+        
+        # Cancel remaining tasks
+        for task in pending:
+            if not task.done():
+                task.cancel()
+        
+        # Handle cancelled tasks
+        for task in pending:
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+            except Exception as e:
+                logger.debug(f"Task for {getattr(task, 'url', 'unknown')} cancelled with error: {e}")
+        
+        return valid_results, all_results
+
+    async def _cache_result(self, result: Any, markdown_content: str) -> None:
+        """
+        Cache crawler result to file.
+        
+        Args:
+            result: Crawler result to cache
+            markdown_content: Markdown content to save
+        """
+        try:
+            url_hash = hashlib.md5(result.url.encode()).hexdigest()
+            cache_filename = f"{url_hash}.json"
+            cache_file = os.path.join(self.cache_dir, cache_filename)
+            
+            cache_data = {
+                'url': result.url,
+                'timestamp': time.time(),
+                'markdown': markdown_content
+            }
+            
+            # Optionally save HTML content with size limits
+            if hasattr(result, 'html') and result.html:
+                cache_data['html'] = result.html[:10000]
+            if hasattr(result, 'cleaned_html') and result.cleaned_html:
+                cache_data['cleaned_html'] = result.cleaned_html[:10000]
+            
+            with open(cache_file, 'w', encoding='utf-8') as f:
+                json.dump(cache_data, f, ensure_ascii=False, indent=2)
+            
+            # Update global cache mapping
+            self.add_to_cache_map(cache_filename)
+            
+            logger.info(f"Cached result for {result.url}")
+        except Exception as e:
+            logger.error(f"Error caching result for {result.url}: {e}")
+
 async def process_results(results: List[Any]):
     """Process and display crawling results.
     
@@ -216,15 +557,22 @@ async def main():
         await pool.init()
         
         # Example URL to crawl
-        urls = ["https://zhuanlan.zhihu.com/p/262459884"]
-        results = await pool.crawl(urls)
-        await process_results(results)
+        urls = [
+            "https://zhuanlan.zhihu.com/p/262459884",
+            "https://github.com/unclecode/crawl4ai?tab=readme-ov-file",
+            "https://zhuanlan.zhihu.com/p/27956936120"
+        ]
+        results = await pool.crawl_fastest(urls, count=1, min_word_count=1000)
+        for i, result in enumerate(results):
+            print(result.markdown.raw_markdown)
+            # if result.success:
+            #     logger.info(result.markdown.raw_markdown)
+            # else:
+            #     logger.error(f"Failed to crawl URL: {result.url}, Error: {result.error_message}")
+        # await process_results(results)
         
     except Exception as e:
         logger.error(f"Error occurred: {str(e)}")
-    finally:
-        if pool and pool.initialized:
-            await pool.close()
 
 
 if __name__ == "__main__":

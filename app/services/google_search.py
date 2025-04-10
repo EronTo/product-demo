@@ -18,7 +18,7 @@ class GoogleSearchService:
         exclude_sites: Optional[str] = None,
         language: Optional[str] = None,
         date_restrict: Optional[str] = None,
-        num_results: int = 3
+        num_results: int = 8
     ) -> GoogleSearchResult:
         params = {
             "key": settings.GOOGLE_API_KEY,

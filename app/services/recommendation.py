@@ -158,22 +158,26 @@ class RecommendationService:
             结构化推荐结果列表或字符串，或者在流式模式下返回流式响应
         """
         try:
+            # 提取推荐词
+            query_message = await self.llm_service.extract_user_needs(user_query)
             # 1. 执行Google搜索
-            logger.info(f"执行Google搜索: {user_query}")
+            logger.info(f"执行Google搜索: {query_message}")
             google_search = GoogleSearchService()
             search_results = google_search.search(
-                user_query,
-                exclude_sites= "site:zhihu.com/column site:zhihu.com/question")
+                query_message,
+                exclude_sites= "site:zhihu.com/column site:zhihu.com/question site:www.bilibili.com/ site:www.jd.com/ site:www.mi.com/ site:www.taobao.com/ site:www.tmall.com/ site:www.douyin.com/ site:https://m.bilibili.com/"
+            )
             logger.info(f"Google搜索结果: {search_results}")
             # 2. 提取并去重URL
-            urls = list({result.formattedUrl for result in search_results.items[:5]})
+            urls = list({result.formattedUrl for result in search_results.items})
             # urls = ['https://zhuanlan.zhihu.com/p/260093867', 'https://tw.my-best.com/114851', 'https://zhuanlan.zhihu.com/p/409731335']
             logger.info(f"提取的URL: {urls}")
             web_search_results = []
             try:
-                results = await self.crawler_pool.crawl(urls)
+                results = await self.crawler_pool.crawl_fastest(urls, 3, 5000)
                 for result in results:
-                    web_search_results.append(result.markdown.raw_markdown)
+                    if result is not None and result.markdown.raw_markdown is not None and len(result.markdown.raw_markdown) > 100:
+                        web_search_results.append(result.markdown.raw_markdown[100:5000])
             except Exception as crawl_error:
                 logger.error(f"网页爬取失败: {str(crawl_error)}")
                 raise crawl_error

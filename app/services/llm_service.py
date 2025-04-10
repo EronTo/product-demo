@@ -15,6 +15,8 @@ class LLMService:
         self.recommend_model = settings.DOUBAO_MODEL
         self.client = OpenAI(api_key=settings.VLLM_API_KEY, base_url=settings.VLLM_BASE_URL)
         self.model = settings.VLLM_MODEL
+        self.extract_client = OpenAI(api_key=settings.ALI_API_KEY, base_url=settings.ALI_BASE_API)
+        self.extract_model = settings.ALI_MODEL
 
     async def get_product_recommendations(self, user_query: str):
         try:
@@ -242,3 +244,41 @@ class LLMService:
                 "full_response": None,
                 "structured_data": None
             }
+
+
+    async def extract_user_needs(self, text: str) -> str:
+        try:
+            response = self.extract_client.chat.completions.create(
+                model = self.extract_model,
+                messages=[
+                    {"role": "system", "content": ProductPrompts.EXTRACT_SYSTEM_MESSAGE},
+                    {"role": "user", "content": text}
+                ],
+                max_tokens=150,
+                response_format={"type": "json_object"}
+            )
+            
+            result = json.loads(response.choices[0].message.content)
+            
+            product = result["product"]
+            requirements = result["requirements"]
+            
+            prompt = f'{product} 推荐 ('
+            
+            for i, req in enumerate(requirements):
+                if i != 0:
+                    prompt += f" OR {req}"
+                else:
+                    prompt += f"{req}"
+            
+            if requirements:
+                prompt += ' OR ""'
+            else:
+                prompt += '""'
+            
+            prompt += ')'
+            
+            return prompt
+        except Exception as e:
+            logger.error(f"提取用户需求时出错: {str(e)}")
+            return text
