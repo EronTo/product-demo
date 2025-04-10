@@ -263,7 +263,7 @@ class LLMService:
             product = result["product"]
             requirements = result["requirements"]
             
-            prompt = f'{product} 推荐 ('
+            prompt = f'"{product}" 推荐 ('
             
             for i, req in enumerate(requirements):
                 if i != 0:
