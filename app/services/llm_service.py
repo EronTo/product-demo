@@ -15,8 +15,8 @@ class LLMService:
         self.recommend_model = settings.DOUBAO_MODEL
         self.client = OpenAI(api_key=settings.DOUBAO_API_KEY, base_url=settings.DOUBAO_BASE_URL)
         self.model = settings.VLLM_MODEL
-        self.extract_client = OpenAI(api_key=settings.SILICONFLOW_API_KEY, base_url=settings.SILICONFLOW_BASE_URL)
-        self.extract_model = settings.SILICONFLOW_MODEL
+        self.extract_client = OpenAI(api_key=settings.OLLAMA_API_KEY, base_url=settings.OLLAMA_BASE_URL)
+        self.extract_model = settings.OLLAMA_MODEL
 
     async def get_product_recommendations(self, user_query: str):
         try:
