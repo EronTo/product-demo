@@ -124,7 +124,7 @@ class ProductPrompts:
    - 确保所选商品真实存在且市场可获得
 
 ## 输出要求
-1. 严格按照指定格式输出
+1. 严格按照指定格式输出，语言应与用户输入保持一致
 2. 所有字段必须有效填写(价格范围没有时可以不显示)
 3. 推荐理由必须基于实际产品信息
 4. 推荐理由专业且有说服力，至少500字
@@ -135,20 +135,33 @@ class ProductPrompts:
 - 若搜索结果不足或不相关：推荐真实存在且广为人知的同类产品
 - 若用户需求不明确：基于产品主要特性和适用场景推荐，避免过度假设
 
-## 输出格式
+## 输出格式(输出按照此格式，不需要其他内容):
 
 **商品名称**
 • 推荐理由：[详细描述商品特点及如何匹配用户需求，至少500字]
-• 价格范围：[没有价格信息时不显示此段]
+• 价格范围：[]
 
 **商品名称**
 • 推荐理由：[详细描述商品特点及如何匹配用户需求，至少500字]
 • 价格范围：[]
 
 ...以此类推
-
 <!-- (名称) (名称) (名称) (名称) -->
 ```
+
+# 参考示例
+示例1：
+用户：输出语言:英文。需求：想要一款适合跑步的运动鞋，预算400元以内。
+输出：
+**Nike Revolution 6** 
+• Recommendation: Lightweight mesh upper with cushioned foam midsole, providing excellent breathability and comfort for daily running.
+• Price range: ¥299-349
+
+**Anta Flashfoam Running Shoes**
+
+<!-- (Nike Revolution 6) -->
+...
+
     """
 
     EXTRACT_SYSTEM_MESSAGE = """
