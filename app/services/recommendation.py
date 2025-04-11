@@ -216,3 +216,51 @@ class RecommendationService:
             logger.error(f"Web推荐流程异常: {str(e)}")
             raise e
 
+    async def recommendations_web_v2( self,
+        user_query: str,
+        num_products: int = 3
+    ):
+        try:
+            query_message = await self.llm_service.extract_user_needs(user_query)
+            
+            # 1. 执行Google搜索
+            logger.info(f"执行Google搜索: {query_message}")
+            search_results = self.google_search.search(
+                query_message,
+                exclude_sites= 
+                "site:zhihu.com/column site:zhihu.com/question site:www.bilibili.com/ site:www.jd.com/ site:www.mi.com/ site:www.taobao.com/ site:www.tmall.com/ site:www.douyin.com/ site:https://m.bilibili.com/ site:https://www.reddit.com/ site:https://https://m.weibo.cn/"
+            )
+            logger.info(f"Google搜索结果: {search_results}")
+            
+            # 2. 提取并去重URL
+            urls = list({result.formattedUrl for result in search_results.items})
+            logger.info(f"提取的URL: {urls}")
+            
+            web_search_results = []
+            try:
+                # 3. 使用爬虫客户端爬取网页内容
+                crawl_response = await crawler_client.crawl_fastest(
+                    urls=urls,
+                    count=3,
+                    min_word_count=1000
+                )
+                
+                if crawl_response.success:
+                    for result in crawl_response.results:
+                        if result.success and result.content and len(result.content) > 100:
+                            web_search_results.append(result.content[:5000])
+                else:
+                    logger.error(f"爬虫服务调用失败: {crawl_response.message}")
+                    
+            except Exception as crawl_error:
+                logger.error(f"网页爬取失败: {str(crawl_error)}")
+                
+            # 4. 直接调用LLM服务并返回流式响应
+            return self.llm_service.select_best_products_from_web_v2(
+                user_query=user_query,
+                web_search_result=web_search_results,
+                num_products=num_products
+            )
+        except Exception as e:
+            logger.error(f"Web推荐流程异常: {str(e)}")
+            raise e

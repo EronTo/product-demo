@@ -13,10 +13,10 @@ class LLMService:
     def __init__(self):
         self.recommend_client = OpenAI(api_key=settings.DOUBAO_API_KEY, base_url=settings.DOUBAO_BASE_URL)
         self.recommend_model = settings.DOUBAO_MODEL
-        self.client = OpenAI(api_key=settings.ALI_API_KEY, base_url=settings.ALI_BASE_API)
-        self.model = settings.ALI_MODEL
-        self.extract_client = OpenAI(api_key=settings.ALI_API_KEY, base_url=settings.ALI_BASE_API)
-        self.extract_model = settings.ALI_MODEL
+        self.client = OpenAI(api_key=settings.SILICONFLOW_API_KEY, base_url=settings.SILICONFLOW_BASE_URL)
+        self.model = settings.SILICONFLOW_MODEL
+        self.extract_client = OpenAI(api_key=settings.SILICONFLOW_API_KEY, base_url=settings.SILICONFLOW_BASE_URL)
+        self.extract_model = settings.SILICONFLOW_MODEL
 
     async def get_product_recommendations(self, user_query: str):
         try:
@@ -91,6 +91,29 @@ class LLMService:
             print(e)
             logger.error(f"Error in select_best_products_from_web: {str(e)}")
             return None
+
+    def select_best_products_from_web_v2(
+        self,
+        user_query: str,
+        web_search_result: str,
+        num_products: int = 3
+    ) :
+        user_message = ProductPrompts.SELECT_PRODUCTS_FROM_WEB.format(
+            user_query=user_query,
+            web_search_result=web_search_result,
+            num_products=num_products,
+        )
+
+        logger.info(user_message)
+
+        return self.client.chat.completions.create(
+            model=self.model,
+            messages=[
+                {"role": "system", "content": ProductPrompts.PRODUCT_RECOMMENDATION},
+                {"role": "user", "content": user_message}
+            ],
+            stream=True
+        )
 
     async def select_best_products(
         self,
