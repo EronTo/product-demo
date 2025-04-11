@@ -109,7 +109,7 @@ class ProductPrompts:
 
 ## 分析步骤
 1. **需求分析**：
-   - 提取用户关键需求：目的、使用场景、预算范围、风格偏好、功能要求等
+   - 根据用户需求提取用户关键需求：目的、使用场景、预算、风格偏好、功能要求等
    - 识别必要条件与优先考虑因素
 
 2. **数据处理**：
@@ -118,21 +118,20 @@ class ProductPrompts:
 
 3. **商品筛选标准**：
    - 优先选择行业知名度高、口碑良好的产品
+   - 如果用户有价格预算,确保推荐产品在预算范围内,如果商品没有价格信息且用户有预算需要，则不考虑这件商品
    - 确保推荐产品多样性，避免同一品牌的商品和同样的商品多次出现
    - 确保所选商品真实存在且市场可获得
 
 ## 输出要求
 1. 仅输出规定格式的内容，不添加任何额外文字或说明
-2. 语言应与用户输入保持一致
-3. 推荐理由必须基于实际产品信息，专业且有说服力
-4. 每个推荐理由控制在500-600字左右，突出产品核心优势
-5. 价格信息处理：
-   - 如果网页结果中有明确价格信息，使用"• 价格参考：xx-xx元"的区间范围表示
+2. 推荐理由必须基于实际产品信息，专业且有说服力，控制在500-600字左右，突出产品核心优势
+3. 价格信息处理：
+   - 如果网页结果中有明确价格信息，使用"• 价格参考：xx-xx元"的区间范围表示, 价格参考使用确切价格两边20%的范围
+   - 在文中有的价格需要判断是什么货币单位，人民币、美元、欧元等，最后统一转换为人民币
    - 如果网页结果中没有价格信息，则完全省略价格这一行，不显示任何价格相关内容或预估
-6. 在最后的返回结果的最后在注释标签<!-- -->内列出所有推荐商品名称，用双括号((名称))包围
+4. 在最后的返回结果的最后在注释标签<!-- -->内列出所有推荐商品名称，用双括号((名称))包围
 
-## 输出格式
-```
+## 输出格式(确保可以正常解析)
 **商品名称1**
 
 • 推荐理由：[500-600字的专业推荐理由，突出与用户需求的匹配点，不包含任何价格相关描述或猜测]
@@ -142,7 +141,6 @@ class ProductPrompts:
 
 • 推荐理由：[500-600字的专业推荐理由，突出与用户需求的匹配点，不包含任何价格相关描述或猜测]
 • 价格参考：xx-xx元 [仅在有明确价格信息时显示此行]
-
 ...
 
 **商品名称{num_products}**
@@ -151,7 +149,7 @@ class ProductPrompts:
 • 价格参考：xx-xx元 [仅在有明确价格信息时显示此行]
 
 <!-- ((商品名称1)) ((商品名称2)) ... ((商品名称{num_products})) -->
-```
+
 ## 参考示例
 
 示例1：
@@ -159,7 +157,6 @@ class ProductPrompts:
 用户：输出语言:英文。需求：想要一款适合跑步的运动鞋，预算400元以内。
 
 输出：
-```
 **Nike Revolution 6**
 
 • Recommendation: The Nike Revolution 6 is a highly cost-effective running shoe featuring a lightweight design and soft foam cushioning that delivers comfortable support for daily runs, while its breathable mesh upper keeps feet cool and dry, and the durable rubber outsole provides reliable traction on various surfaces; its clean, contemporary aesthetic makes it suitable not only for workouts but also for casual wear, making it an ideal choice for those seeking a running shoe that combines functionality with style.
@@ -170,7 +167,7 @@ class ProductPrompts:
 • Recommendation: The Anta Flashfoam Running Shoes are designed for outdoor running, featuring a lightweight and breathable upper that ensures comfort during long runs, while the innovative Flashfoam cushioning technology provides excellent shock absorption and energy return, making them suitable for both casual joggers and serious runners; their stylish design also makes them a great choice for everyday wear.
 
 <!-- ((Nike Revolution 6)) ((Anta Flashfoam Running Shoes)) -->
-```
+
 """
 
     EXTRACT_SYSTEM_MESSAGE = """
