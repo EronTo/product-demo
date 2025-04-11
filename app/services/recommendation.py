@@ -9,7 +9,7 @@ from app.services.product_client import ProductClient
 from typing import List
 from app.services.google_search import GoogleSearchService
 from app.services.llm_service import LLMService
-from app.services.craw4ai_pool import CrawlerPool
+from app.services.crawler_client import crawler_client  # 导入新的爬虫客户端
 
 logger = logging.getLogger(__name__)
 
@@ -21,12 +21,12 @@ class RecommendationService:
     def __init__(self):
         """Initialize the RecommendationService with required dependencies."""
         self.llm_service = LLMService()
-        self.crawler_pool = CrawlerPool(n_crawlers=3)
         self.google_search = GoogleSearchService()
     
     async def init(self):
         """Initialize async resources."""
-        await self.crawler_pool.init()
+        # 不再需要初始化本地爬虫池
+        pass
     
     async def get_product_recommendations(
         user_query: str, 
@@ -160,27 +160,40 @@ class RecommendationService:
         try:
             # 提取推荐词
             query_message = await self.llm_service.extract_user_needs(user_query)
+            
             # 1. 执行Google搜索
             logger.info(f"执行Google搜索: {query_message}")
-            google_search = GoogleSearchService()
-            search_results = google_search.search(
+            search_results = self.google_search.search(
                 query_message,
-                exclude_sites= "site:zhihu.com/column site:zhihu.com/question site:www.bilibili.com/ site:www.jd.com/ site:www.mi.com/ site:www.taobao.com/ site:www.tmall.com/ site:www.douyin.com/ site:https://m.bilibili.com/ site:https://www.reddit.com/"
+                exclude_sites= 
+                "site:zhihu.com/column site:zhihu.com/question site:www.bilibili.com/ site:www.jd.com/ site:www.mi.com/ site:www.taobao.com/ site:www.tmall.com/ site:www.douyin.com/ site:https://m.bilibili.com/ site:https://www.reddit.com/ site:https://https://m.weibo.cn/"
             )
             logger.info(f"Google搜索结果: {search_results}")
+            
             # 2. 提取并去重URL
             urls = list({result.formattedUrl for result in search_results.items})
-            # urls = ['https://zhuanlan.zhihu.com/p/260093867', 'https://tw.my-best.com/114851', 'https://zhuanlan.zhihu.com/p/409731335']
             logger.info(f"提取的URL: {urls}")
+            
             web_search_results = []
             try:
-                results = await self.crawler_pool.crawl_fastest(urls, 3, 1000)
-                for result in results:
-                    if result is not None and result.markdown.raw_markdown is not None and len(result.markdown.raw_markdown) > 100:
-                        web_search_results.append(result.markdown.raw_markdown[:5000])
+                # 3. 使用爬虫客户端替代本地爬虫池
+                crawl_response = await crawler_client.crawl_fastest(
+                    urls=urls,
+                    count=3,
+                    min_word_count=1000
+                )
+                
+                if crawl_response.success:
+                    for result in crawl_response.results:
+                        if result.success and result.content and len(result.content) > 100:
+                            web_search_results.append(result.content[:5000])
+                else:
+                    logger.error(f"爬虫服务调用失败: {crawl_response.message}")
+                    
             except Exception as crawl_error:
                 logger.error(f"网页爬取失败: {str(crawl_error)}")
                 raise crawl_error
+                
             # 4. 调用LLM处理
             if stream:
                 # 流式模式
