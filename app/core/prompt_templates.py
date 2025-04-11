@@ -94,8 +94,7 @@ class ProductPrompts:
         """
     
 
-    SELECT_PRODUCTS_FROM_WEB = """
-        ```
+    SELECT_PRODUCTS_FROM_WEB = """ 
 # 产品推荐任务
 
 ## 任务目标
@@ -119,46 +118,60 @@ class ProductPrompts:
 
 3. **商品筛选标准**：
    - 优先选择行业知名度高、口碑良好的产品
-   - 确保推荐产品多样性，避免同一品牌多次出现
-   - 考虑性价比因素，但不以价格作为唯一标准
+   - 确保推荐产品多样性，避免同一品牌的商品和同样的商品多次出现
    - 确保所选商品真实存在且市场可获得
 
 ## 输出要求
-1. 严格按照指定格式输出，语言应与用户输入保持一致
-2. 所有字段必须有效填写(价格范围没有时可以不显示)
-3. 推荐理由必须基于实际产品信息
-4. 推荐理由专业且有说服力，至少500字
-5. 价格表述使用区间范围，不使用具体数字，如果网页上没有价格信息则不显示价格信息
-6. 最后按照<!--  -->的格式，确保在 markdown 里不显示，输出所有的商品名称，用双括号包起来
+1. 仅输出规定格式的内容，不添加任何额外文字或说明
+2. 语言应与用户输入保持一致
+3. 推荐理由必须基于实际产品信息，专业且有说服力
+4. 每个推荐理由控制在500-600字左右，突出产品核心优势
+5. 价格信息处理：
+   - 如果网页结果中有明确价格信息，使用"• 价格参考：xx-xx元"的区间范围表示
+   - 如果网页结果中没有价格信息，则完全省略价格这一行，不显示任何价格相关内容或预估
+6. 在最后的返回结果的最后在注释标签<!-- -->内列出所有推荐商品名称，用双括号((名称))包围
 
-## 特殊情况处理
-- 若搜索结果不足或不相关：推荐真实存在且广为人知的同类产品
-- 若用户需求不明确：基于产品主要特性和适用场景推荐，避免过度假设
-
-## 输出格式(输出按照此格式，不需要其他内容):
-
-**商品名称** 
-• 推荐理由：
-• 价格范围：没有价格就不显示这一行
-
-...以此类推
-<!-- (名称) (名称) (名称) (名称) -->
+## 输出格式
 ```
+**商品名称1**
 
-# 参考示例
+• 推荐理由：[500-600字的专业推荐理由，突出与用户需求的匹配点，不包含任何价格相关描述或猜测]
+• 价格参考：xx-xx元 [仅在有明确价格信息时显示此行]
+
+**商品名称2**
+
+• 推荐理由：[500-600字的专业推荐理由，突出与用户需求的匹配点，不包含任何价格相关描述或猜测]
+• 价格参考：xx-xx元 [仅在有明确价格信息时显示此行]
+
+...
+
+**商品名称{num_products}**
+
+• 推荐理由：[500-600字的专业推荐理由，突出与用户需求的匹配点，不包含任何价格相关描述或猜测]
+• 价格参考：xx-xx元 [仅在有明确价格信息时显示此行]
+
+<!-- ((商品名称1)) ((商品名称2)) ... ((商品名称{num_products})) -->
+```
+## 参考示例
+
 示例1：
+
 用户：输出语言:英文。需求：想要一款适合跑步的运动鞋，预算400元以内。
+
 输出：
-**Nike Revolution 6** 
-• Recommendation: Lightweight mesh upper with cushioned foam midsole, providing excellent breathability and comfort for daily running.
+```
+**Nike Revolution 6**
+
+• Recommendation: The Nike Revolution 6 is a highly cost-effective running shoe featuring a lightweight design and soft foam cushioning that delivers comfortable support for daily runs, while its breathable mesh upper keeps feet cool and dry, and the durable rubber outsole provides reliable traction on various surfaces; its clean, contemporary aesthetic makes it suitable not only for workouts but also for casual wear, making it an ideal choice for those seeking a running shoe that combines functionality with style.
 • Price range: ¥299-349
 
 **Anta Flashfoam Running Shoes**
 
-<!-- (Nike Revolution 6) -->
-...
+• Recommendation: The Anta Flashfoam Running Shoes are designed for outdoor running, featuring a lightweight and breathable upper that ensures comfort during long runs, while the innovative Flashfoam cushioning technology provides excellent shock absorption and energy return, making them suitable for both casual joggers and serious runners; their stylish design also makes them a great choice for everyday wear.
 
-    """
+<!-- ((Nike Revolution 6)) ((Anta Flashfoam Running Shoes)) -->
+```
+"""
 
     EXTRACT_SYSTEM_MESSAGE = """
             提取: 1.产品名称,只是品类名 2.产品需求。

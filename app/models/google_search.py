@@ -48,8 +48,8 @@ class SearchResultItem(BaseModel):
     htmlTitle: str
     link: str
     displayLink: str
-    snippet: str
-    htmlSnippet: str
+    snippet: Optional[str] = None
+    htmlSnippet: Optional[str] = None
     formattedUrl: str
     htmlFormattedUrl: str
     pagemap: Optional[PageMap] = None

@@ -14,7 +14,7 @@ router = APIRouter()
 
 recommendation_service = RecommendationService()
 
-@router.post("/recommendations/web")
+@router.post("/chat/completion")
 async def web_recommendations(
     user_query: str,
     num_products: int = Query(3, gt=0, le=settings.MAX_NUM_RECOMMENDATIONS)
@@ -36,7 +36,6 @@ async def web_recommendations(
     async def generate():
         try:
             logger.info(f"开始处理流式推荐请求: {user_query}")
-            yield "开始处理您的请求...\n"
             stream_response = await recommendation_service.recommendations_web(
                 user_query = user_query,
                 num_products = num_products
