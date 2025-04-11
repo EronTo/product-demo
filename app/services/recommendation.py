@@ -165,7 +165,7 @@ class RecommendationService:
             google_search = GoogleSearchService()
             search_results = google_search.search(
                 query_message,
-                exclude_sites= "site:zhihu.com/column site:zhihu.com/question site:www.bilibili.com/ site:www.jd.com/ site:www.mi.com/ site:www.taobao.com/ site:www.tmall.com/ site:www.douyin.com/ site:https://m.bilibili.com/"
+                exclude_sites= "site:zhihu.com/column site:zhihu.com/question site:www.bilibili.com/ site:www.jd.com/ site:www.mi.com/ site:www.taobao.com/ site:www.tmall.com/ site:www.douyin.com/ site:https://m.bilibili.com/ site:https://www.reddit.com/"
             )
             logger.info(f"Google搜索结果: {search_results}")
             # 2. 提取并去重URL
@@ -174,7 +174,7 @@ class RecommendationService:
             logger.info(f"提取的URL: {urls}")
             web_search_results = []
             try:
-                results = await self.crawler_pool.crawl_fastest(urls, 3, 3000)
+                results = await self.crawler_pool.crawl_fastest(urls, 3, 1000)
                 for result in results:
                     if result is not None and result.markdown.raw_markdown is not None and len(result.markdown.raw_markdown) > 100:
                         web_search_results.append(result.markdown.raw_markdown[:5000])

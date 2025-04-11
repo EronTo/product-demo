@@ -74,8 +74,8 @@ class CrawlerPool:
         """Create default browser configuration."""
         return BrowserConfig(
             headless=True,
-            text_mode=True,
-            light_mode=True,
+            # text_mode=True,
+            # light_mode=True,
             viewport_width=800,
             viewport_height=600,
             extra_args=[
@@ -113,9 +113,9 @@ class CrawlerPool:
     def _default_dispatcher() -> MemoryAdaptiveDispatcher:
         """Create default memory adaptive dispatcher."""
         return MemoryAdaptiveDispatcher(
-            memory_threshold_percent=90.0,
-            check_interval=5,
-            max_session_permit=10,
+            memory_threshold_percent=99.0,
+            check_interval=10,
+            max_session_permit=100,
         )
     
     async def init(self):
@@ -209,18 +209,17 @@ class CrawlerPool:
 
     async def crawl_fastest(self, urls: List[str], count: int = 1, min_word_count: int = 100) -> List[Any]:
         """
-        Crawl multiple URLs and return the fastest results that meet word count criteria.
-        Uses local file cache when available to improve performance.
+        使用流模式爬取多个URL并返回前count个符合条件的结果。
         
         Args:
-            urls: List of URLs to crawl
-            count: Number of results to return
-            min_word_count: Minimum word count required for a valid result
+            urls: 要爬取的URL列表
+            count: 需要返回的结果数量
+            min_word_count: 最小字数要求
                     
         Returns:
-            List of fastest results meeting the word count criteria or top results by word count
+            前count个符合条件的结果列表，如果没有足够的符合条件结果，则按字数排序返回前count个
         """
-        # Initialize crawler if needed
+        # 如果需要初始化
         if not self.initialized:
             await self.init()
         
@@ -228,13 +227,14 @@ class CrawlerPool:
         valid_results = [] 
         all_results = []  
         
-        # --- STEP 1: Prepare URLs and hash mapping ---
+        # --- 步骤 1: 准备URL和哈希映射 ---
         url_hash_map = {url: hashlib.md5(url.encode()).hexdigest() for url in urls}
         
-        # --- STEP 2: Process cached URLs ---
+        # --- 步骤 2: 处理缓存URL ---
+        # 保留原有的缓存处理逻辑
         urls_to_crawl = await self._process_cached_urls(url_hash_map, valid_results, all_results, count, min_word_count)
         
-        # If we already have enough valid results or nothing to crawl, return results
+        # 如果已经有足够的有效结果或没有需要爬取的URL，直接返回
         if len(valid_results) >= count or not urls_to_crawl:
             if len(valid_results) >= count:
                 return valid_results[:count]
@@ -242,31 +242,68 @@ class CrawlerPool:
                 all_results.sort(key=lambda x: getattr(x, 'word_count', 0), reverse=True)
                 return all_results[:count]
         
-        # --- STEP 3: Crawl remaining URLs ---
+        # --- 步骤 3: 使用流模式爬取剩余URL ---
+        
+        # 获取一个爬虫实例
         crawler = await self._get_available_crawler()
+        
         try:
-            # Add any new results to our collections
-            new_valid_results, new_all_results = await self._crawl_urls(
-                crawler, urls_to_crawl, min_word_count, count - len(valid_results), start_time
-            )
-            valid_results.extend(new_valid_results)
-            all_results.extend(new_all_results)
+            # 使用arun_many进行流式爬取
+            async for result in await crawler.arun_many(
+                urls=urls_to_crawl,
+                config=self.crawler_run_config,
+                dispatcher=self.dispatcher
+            ):
+                try:
+                    # 提取markdown内容和计算字数
+                    word_count = 0
+                    markdown_content = None
+                    
+                    if hasattr(result, 'markdown') and result.markdown:
+                        if hasattr(result.markdown, 'raw_markdown'):
+                            markdown_content = result.markdown.raw_markdown
+                            word_count = len(markdown_content)
+                        else:
+                            markdown_content = str(result.markdown)
+                            word_count = len(markdown_content)
+                    
+                    # 缓存结果
+                    # if markdown_content and hasattr(result, 'url'):
+                    #     await self._cache_result(result, markdown_content)
+                    
+                    # 添加到结果集合
+                    result.word_count = word_count
+                    all_results.append(result)
+                    
+                    if word_count >= min_word_count:
+                        valid_results.append(result)
+                        logger.info(f"找到符合条件的结果：{result.url}，字数：{word_count}，耗时：{time.time() - start_time:.2f}秒")
+                        
+                        # 如果已有足够结果，提前退出
+                        if len(valid_results) >= count:
+                            logger.info(f"已找到 {count} 个符合条件的结果，提前停止爬取")
+                            break
+                    else:
+                        logger.info(f"结果不符合字数要求：{result.url}，字数：{word_count}，最小要求：{min_word_count}")
+                        
+                except Exception as e:
+                    logger.error(f"处理爬取结果时出错: {str(e)}")
             
-            # Return appropriate results
+            # 返回结果
             if len(valid_results) >= count:
                 return valid_results[:count]
             else:
-                logger.info(f"Only found {len(valid_results)} valid results, returning top {count} results by word count")
+                logger.info(f"只找到 {len(valid_results)} 个符合条件的结果，返回按字数排序的前 {count} 个结果")
                 all_results.sort(key=lambda x: getattr(x, 'word_count', 0), reverse=True)
                 return all_results[:count]
+                
         finally:
-            # Always release the crawler back to pool
+            # 释放爬虫
             await self._release_crawler(crawler)
             
             end_time = time.time()
             total_time = end_time - start_time
-            logger.info(f"Fastest crawling completed in {total_time:.2f} seconds")
-
+            logger.info(f"快速爬取完成，耗时 {total_time:.2f} 秒")
     async def _process_cached_url(self, url: str, url_hash: str) -> Tuple[Optional[Any], int]:
         """
         Process a single cached URL, loading from file if available.
@@ -523,6 +560,7 @@ class CrawlerPool:
             logger.info(f"Cached result for {result.url}")
         except Exception as e:
             logger.error(f"Error caching result for {result.url}: {e}")
+            
 
 async def process_results(results: List[Any]):
     """Process and display crawling results.
@@ -562,13 +600,15 @@ async def main():
         
         # Example URL to crawl
         urls = [
+            "https://zhuanlan.zhihu.com/p/407350813",
             "https://zhuanlan.zhihu.com/p/262459884",
-            # "https://github.com/unclecode/crawl4ai?tab=readme-ov-file",
-            # "https://zhuanlan.zhihu.com/p/27956936120"
+            "https://github.com/unclecode/crawl4ai?tab=readme-ov-file",
+            "https://zhuanlan.zhihu.com/p/27956936120"
         ]
-        results = await pool.crawl_fastest(urls, count=1, min_word_count=100000)
-        for i, result in enumerate(results):
-            print(result.markdown.raw_markdown)
+        # results = await pool.crawl(urls)
+        await pool.crawl_fastest(urls, count=3, min_word_count=100)
+        # for i, result in enumerate(results):
+        #     print(len(result.markdown.raw_markdown))
             # if result.success:
             #     logger.info(result.markdown.raw_markdown)
             # else:
