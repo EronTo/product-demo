@@ -282,26 +282,26 @@ class LLMService:
             )
             
             result = json.loads(response.choices[0].message.content)
-            
+            logger.info("result: %s", result)
             product = result["product"]
             requirements = result["requirements"]
             
-            prompt = f'"{product}" 推荐'
-            # prompt = f'"{product}" 推荐 ('
+            # prompt = f'"{product}" 推荐'
+            prompt = f'"{product}" 推荐 ('
             
-            # for i, req in enumerate(requirements):
-            #     if i != 0:
-            #         prompt += f" OR {req}"
-            #     else:
-            #         prompt += f"{req}"
+            for i, req in enumerate(requirements):
+                if i != 0:
+                    prompt += f" OR {req}"
+                else:
+                    prompt += f"{req}"
             
-            # if requirements:
-            #     prompt += ' OR ""'
-            # else:
-            #     prompt += '""'
+            if requirements:
+                prompt += ' OR ""'
+            else:
+                prompt += '""'
             
-            # prompt += ')'
-            
+            prompt += ')'
+            logger.info("prompt: %s", prompt)
             return prompt
         except Exception as e:
             logger.error(f"提取用户需求时出错: {str(e)}")

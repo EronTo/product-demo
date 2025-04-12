@@ -227,6 +227,7 @@ class RecommendationService:
             logger.info(f"执行Google搜索: {query_message}")
             search_results = self.google_search.search(
                 query_message,
+                language="zh-CN",
                 exclude_sites= 
                 "site:zhihu.com/column site:zhihu.com/question site:www.bilibili.com/ site:www.jd.com/ site:www.mi.com/ site:www.taobao.com/ site:www.tmall.com/ site:www.douyin.com/ site:https://m.bilibili.com/ site:https://www.reddit.com/ site:https://https://m.weibo.cn/"
             )
@@ -241,14 +242,14 @@ class RecommendationService:
                 # 3. 使用爬虫客户端爬取网页内容
                 crawl_response = await crawler_client.crawl_fastest(
                     urls=urls,
-                    count=3,
+                    count=5,
                     min_word_count=1000
                 )
                 
                 if crawl_response.success:
                     for result in crawl_response.results:
                         if result.success and result.content and len(result.content) > 100:
-                            web_search_results.append(result.content[:5000])
+                            web_search_results.append(result.content[:10000])
                 else:
                     logger.error(f"爬虫服务调用失败: {crawl_response.message}")
                     

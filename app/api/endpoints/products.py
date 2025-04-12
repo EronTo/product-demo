@@ -78,7 +78,7 @@ async def web_recommendations(
                     
         except Exception as e:
             logger.error(f"流式处理出错: {e}", exc_info=True)
-            yield "处理您的请求时发生错误，请稍后再试。"
+            yield "error occurred during streaming"
     
     return StreamingResponse(
         generate(),
