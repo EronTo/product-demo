@@ -97,7 +97,7 @@ class ProductPrompts:
 # 产品推荐任务
 
 ## 任务目标
-从提供的产品信息中，基于用户需求精选{num_products}款最匹配的商品，提供专业、真实且有说服力的推荐。
+从提供的产品信息中，基于用户需求精选 {num_products} 款最匹配的商品，提供专业、真实且有说服力的推荐。
 
 ## 输入数据
 ### 用户需求
@@ -108,66 +108,105 @@ class ProductPrompts:
 
 ## 分析步骤
 1. **需求分析**：
-   - 根据用户需求提取用户关键需求：目的、使用场景、预算、风格偏好、功能要求等
-   - 识别必要条件与优先考虑因素
+   - 根据用户需求提取用户关键需求：目的、使用场景、预算、风格偏好、功能要求、品牌、颜色、材质等
+   - 区分**必要条件（强约束）**与**优先考虑因素（偏好项）**
 
 2. **数据处理**：
    - 过滤无关内容，仅保留与用户需求相关的商品信息
    - 对每个候选产品评估与用户需求的匹配度
 
 3. **商品筛选标准**：
-   - 品牌要求：优先选择用户指定的品牌，若无法满足要求，则考虑其他品牌
-   - 价格范围：如果用户指定预算，确保推荐商品的价格在预算范围内，若没有符合的产品，则返回符合预算范围的其他推荐
-   - 功能需求：确保商品符合用户明确的需求（如夏季、棉质、白色等）
-   - 多样性：除非用户指定了品牌或其他筛选条件，推荐多样化的商品，避免重复品牌或商品
+   - **品牌要求**：优先选择用户指定的品牌，若无法满足要求，则考虑其他匹配度高的品牌
+   - **价格范围**：如用户指定预算，确保推荐商品价格在预算范围内；若无完全符合的商品，则推荐最接近预算范围的高匹配度商品
+   - **功能要求**：确保商品满足用户明确需求（如“100%棉”“防水”“适合夏季”等）
+   - **推荐多样性**：除非用户指定了品牌或其他唯一筛选条件，推荐商品应在款式、风格上保持多样性，避免重复品牌或系列
 
-## 输出要求
-1. 仅输出规定格式的内容，不添加任何额外文字或说明
-2. 商品名称应该是品牌加型号，如"Nike Air Max 270"，不要使用店铺名之类的非产品相关的名称
-3. 推荐理由必须基于实际产品信息，专业且有说服力，控制在500-600字左右，突出产品核心优势
-4. 价格信息处理：
-   - 如果网页结果中有明确价格信息，使用"• 价格参考：xx-xx元"的区间范围表示, 价格参考使用确切价格两边20%的范围
-   - 在文中有的价格需要判断是什么货币单位，人民币、美元、欧元等，最后统一转换为人民币
-   - 如果网页结果中没有价格信息，则完全省略价格这一行，不显示任何价格相关内容或预估
-5. 在最后的返回结果的最后在注释标签<!-- -->内列出所有推荐商品名称，用双括号((名称))包围
-6. 如果找不出{num_products}款合适的商品，可以少返回一些商品，或者返回符合预算的其他推荐
+## 语言选择规则
+1. **优先检查用户需求中是否包含语言指令关键词**：
+   - 如包含 `输出语言:中文` 或 `输出语言:英文`，则使用对应语言输出内容（推荐理由 + 标签名称），**商品名称始终保持原文不翻译**
+   - 语言指令关键词的识别不受大小写、空格等影响
 
-## 输出格式(确保可以正常解析)
-**商品名称1**
+2. **若用户未指定语言**，则使用英语输出
 
-• 推荐理由：[500-600字的专业推荐理由，突出与用户需求的匹配点，不包含任何价格相关描述或猜测]
-• 价格参考：xx-xx元 [仅在有明确价格信息时显示此行]
+3. **无论哪种语言输出，商品名称始终保持原始英文格式**，不进行翻译或变形（如：`Nike Air Max 270` 不能改为 “耐克空气马克斯 270”）
 
-**商品名称2**
+4. 输出中受语言控制的内容包括：
+   - 推荐理由段落
+   - 标签（“推荐理由” / “Recommendation”，“价格参考” / “Price range”）
+   - 输出格式结构（中文使用“元”，英文统一使用“¥xx-xx”格式）
 
-• 推荐理由：[500-600字的专业推荐理由，突出与用户需求的匹配点，不包含任何价格相关描述或猜测]
-• 价格参考：xx-xx元 [仅在有明确价格信息时显示此行]
-...
+## 商品名称规范
+1. 所有商品名称必须采用**标准英文品牌名 + 官方型号/系列名**的格式，如 `Nike Air Max 270`、`Adidas Ultraboost 22`，不允许出现店铺名、商品描述、平台关键词或多余标签。
+2. 以下信息不能出现在商品名称中：
+   - 描述信息（如：“白色”，“防晒”）
+   - 平台或店铺名称
+   - 商品属性描述混入名称（如：“立式台灯”“学习作业书桌阅读灯”）
+   - 商品规格信息（"100瓦"）
+   - 多余括号、引号或注释信息
+3. 商品名称应保持简洁、统一、专业，便于用户识别和搜索，不需要包含用途和描述
 
-**商品名称{num_products}**
+> 示例（不合规 → 合规）：
+> - “书客 suker）落地护眼灯Sun立式台灯 白色” →  “书客落地护眼灯”
+> - “阿迪达斯透气跑步鞋夏季款” →  阿迪达斯 Ultraboost 22”
+> - “Nike运动短袖白色透气棉” →  “Nike Dri-FIT Cotton Tee”
+> - “Philips LAFA舒适光台灯钢琴灯儿童专业学习阅读书桌卧” →  “Philips LAFA Comfort Light Lamp”
+> - “孩视宝全光谱落地灯客厅床头卧室沙发阅读护眼灯学习台灯钢琴灯” -> “孩视宝全光谱落地灯”
 
-• 推荐理由：[500-600字的专业推荐理由，突出与用户需求的匹配点，不包含任何价格相关描述或猜测]
-• 价格参考：xx-xx元 [仅在有明确价格信息时显示此行]
+## 价格信息处理逻辑
+1. 如网页中有价格信息，先判断其币种（人民币、美元、欧元等）
+2. 所有价格统一转换为**人民币（元）**
+   - 非人民币价格按当前汇率换算（四舍五入到整元）
+3. 所有价格区间统一格式为：
+   > • 价格参考：¥xx-xx元  
+   区间为实际价格的80%到120%，体现合理价格波动范围
+4. 如果网页结果中**没有价格信息**，则**完全省略价格一行**，不要显示“价格参考”或进行任何价格猜测
 
-<!-- ((商品名称1)) ((商品名称2)) ... ((商品名称{num_products})) -->
+## 输出格式
+1. **严格按照以下格式输出**，不得添加额外解释、注释、换行提示或 HTML 标签
+2. 商品名称必须为**品牌+型号**（如“Nike Air Max 270”），不要使用店铺名、促销名称或平台标签
+3. 推荐理由必须基于实际产品信息，**内容真实、专业、有说服力**，字数控制在**200-300字之间**
+4. 推荐理由中**不得包含任何价格相关内容或价格猜测**
+5. 最终输出中除了商品名称，推荐理由，价格参考和最后的商品列表名称不包含任何其他的内容
+6. 最后按照<!--  -->的格式，确保在 markdown 里不显示，输出所有的商品商品名称
+---
 
-## 参考示例
+中文输出格式：
 
-示例1：
+**商品名称1**  
+• 推荐理由：[200-300字的专业推荐理由，突出与用户需求的匹配点，不包含任何价格相关描述或猜测]  
+• 价格参考：¥xx-xx元 [仅在有价格信息时显示此行]
 
-用户：输出语言:英文。需求：想要一款适合跑步的运动鞋，预算400元以内。
+**商品名称2**  
+• 推荐理由：[200-300字的专业推荐理由，突出与用户需求的匹配点，不包含任何价格相关描述或猜测]  
+• 价格参考：¥xx-xx元
 
-输出：
-**Nike Revolution 6**
+<!-- (商品名称1) (商品名称2) ... (商品名称{num_products}) -->
 
-• Recommendation: The Nike Revolution 6 is a highly cost-effective running shoe featuring a lightweight design and soft foam cushioning that delivers comfortable support for daily runs, while its breathable mesh upper keeps feet cool and dry, and the durable rubber outsole provides reliable traction on various surfaces; its clean, contemporary aesthetic makes it suitable not only for workouts but also for casual wear, making it an ideal choice for those seeking a running shoe that combines functionality with style.
-• Price range: ¥299-349
+---
 
-**Anta Flashfoam Running Shoes**
+英文输出格式：
 
-• Recommendation: The Anta Flashfoam Running Shoes are designed for outdoor running, featuring a lightweight and breathable upper that ensures comfort during long runs, while the innovative Flashfoam cushioning technology provides excellent shock absorption and energy return, making them suitable for both casual joggers and serious runners; their stylish design also makes them a great choice for everyday wear.
+**商品名称1**  
+• Recommendation: [200–300 words of professional, fact-based recommendation, clearly aligned with the user’s needs. No speculative or price-related statements are allowed.]  
+• Price range: ¥xx-xx
 
-<!-- ((Nike Revolution 6)) ((Anta Flashfoam Running Shoes)) -->
+**商品名称2**  
+• Recommendation: [200–300 words of professional, fact-based recommendation, clearly aligned with the user’s needs. No speculative or price-related statements are allowed.]  
+• Price range: ¥xx-xx
+
+<!-- (商品名称1) (商品名称2) ... (商品名称{num_products}) -->
+
+---
+
+## 推荐理由撰写说明
+- 内容应突出商品与用户需求的高度匹配：材质（如100%棉）、功能（如透气、吸汗）、适用场景（如夏季日常穿着）、品牌优势等
+- 不得在推荐理由中包含任何价格描述、价格对比、价格猜测或价值判断（如“很划算”“比其他品牌便宜”）
+
+---
+
+## 最后说明
+
+本任务为标准化商品推荐任务，目标是根据用户需求，从真实网页数据中精选最符合条件的商品。请严格遵守任务结构、语言规则和输出格式，不得输出说明性文字、格式提示或额外注释。所有推荐必须真实、专业、具备可信度，聚焦商品与用户需求之间的精准匹配。
 
 """
 

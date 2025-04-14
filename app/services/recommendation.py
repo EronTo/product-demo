@@ -228,8 +228,9 @@ class RecommendationService:
             search_results = self.google_search.search(
                 query_message,
                 language="zh-CN",
+                # site_filter="(site:zhihu.com OR site:smzdm.com OR site:pconline.com.cn)",
                 exclude_sites= 
-                "site:zhihu.com/column site:zhihu.com/question site:www.bilibili.com/ site:www.jd.com/ site:www.mi.com/ site:www.taobao.com/ site:www.tmall.com/ site:www.douyin.com/ site:https://m.bilibili.com/ site:https://www.reddit.com/ site:https://https://m.weibo.cn/"
+                "site:zhihu.com/column site:zhihu.com/question site:www.bilibili.com/ site:www.jd.com/ site:www.mi.com/ site:www.taobao.com/ site:www.tmall.com/ site:www.douyin.com/ site:https://m.bilibili.com/ site:https://www.reddit.com/ site:https://https://m.weibo.cn/ site:https://my.world.taobao.com/ site:https://jv-cn.com/"
             )
             logger.info(f"Google搜索结果: {search_results}")
             
