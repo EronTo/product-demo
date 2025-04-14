@@ -20,24 +20,19 @@ class GoogleSearchService:
         num_results: int = 8
     ) -> GoogleSearchResult:
         modified_query = query
-        
+        logger.info(f"query: {query}, site_filter: {site_filter}, exclude_sites: {exclude_sites}, language: {language}, date_restrict: {date_restrict}, num_results: {num_results}")
         if site_filter:
             modified_query += f" {site_filter}"
-        
-        if exclude_sites:
-            sites = exclude_sites.split()
-            for site in sites:
-                if site.startswith("site:"):
-                    modified_query += f" -site:{site[5:]}"
-                else:
-                    modified_query += f" -{site}"
         
         params = {
             "key": settings.GOOGLE_API_KEY,
             "cx": settings.GOOGLE_CX_ID,
-            "q": modified_query,
+            "q": query,
             "num": num_results
         }
+
+        if exclude_sites:
+            params["excludeTerms"] = exclude_sites
         
         if language:
             params["lr"] = f"lang_{language}"
