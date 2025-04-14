@@ -13,6 +13,23 @@ from app.services.crawler_client import crawler_client  # 导入新的爬虫客�
 
 logger = logging.getLogger(__name__)
 
+
+EXCLUDED_SITES = [
+        "zhihu.com/column",
+        "zhihu.com/question",
+        "www.bilibili.com",
+        "m.bilibili.com",
+        "www.jd.com",
+        "www.mi.com",
+        "www.taobao.com",
+        "www.tmall.com",
+        "www.douyin.com",
+        "www.reddit.com",
+        "m.weibo.cn",
+        "my.world.taobao.com",
+        "jv-cn.com",
+    ]
+
 class RecommendationService:
     """
     Service for handling product recommendations based on user queries.
@@ -236,7 +253,7 @@ class RecommendationService:
             
             # 2. 提取并去重URL
             urls = list({result.formattedUrl for result in search_results.items})
-            logger.info(f"提取的URL: {urls}")
+            logger.info(f"提取的URL: {urls}, {len(urls)}")
             
             web_search_results = []
             try:
