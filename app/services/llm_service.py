@@ -13,8 +13,8 @@ class LLMService:
     def __init__(self):
         self.recommend_client = OpenAI(api_key=settings.DOUBAO_API_KEY, base_url=settings.DOUBAO_BASE_URL)
         self.recommend_model = settings.DOUBAO_MODEL
-        self.client = OpenAI(api_key=settings.SILICONFLOW_API_KEY, base_url=settings.SILICONFLOW_BASE_URL)
-        self.model = settings.SILICONFLOW_MODEL
+        self.client = OpenAI(api_key=settings.ALI_API_KEY, base_url=settings.ALI_BASE_API)
+        self.model = settings.ALI_MODEL
         self.extract_client = OpenAI(api_key=settings.SILICONFLOW_API_KEY, base_url=settings.SILICONFLOW_BASE_URL)
         self.extract_model = settings.SILICONFLOW_MODEL
 
@@ -96,12 +96,16 @@ class LLMService:
         self,
         user_query: str,
         web_search_result: str,
+        lauguage: str,
+        category_products,
         num_products: int = 3
     ) :
-        user_message = ProductPrompts.SELECT_PRODUCTS_FROM_WEB.format(
+        user_message = ProductPrompts.SELECT_PRODUCTS_FROM_WEB_3.format(
             user_query=user_query,
             web_search_result=web_search_result,
             num_products=num_products,
+            category_products = category_products,
+            language = lauguage
         )
 
         logger.info(user_message)
@@ -135,7 +139,7 @@ class LLMService:
             Dict containing full response and structured data
         """
         try:
-            user_message = ProductPrompts.SELECT_PRODUCT_PRODUCTS.format(
+            user_message = ProductPrompts.SELECT_PRODUCTS_FROM_WEB.format(
                 user_query=user_query,
                 ai_select=llm_response,
                 web_search_result=search_results,
@@ -147,7 +151,7 @@ class LLMService:
             stream = self.client.chat.completions.create(
                 model=self.model,
                 messages=[
-                    {"role": "system", "content": settings.SELECT_BEST_PRODUCTS_SYSTEM_MESSAGE},
+                    {"role": "system", "content": ProductPrompts.SELECT_SYSTEM_SYSTEM_MESSAGE},
                     {"role": "user", "content": user_message}
                 ],
                 stream=True
@@ -285,8 +289,9 @@ class LLMService:
             logger.info("result: %s", result)
             product = result["product"]
             requirements = result["requirements"]
+            language = result["language"]
             
-            prompt = f'{product}推荐'
+            # prompt = f'{product}推荐'
             # prompt = f'"{product}" 推荐 ('
             
             # for i, req in enumerate(requirements):
@@ -301,8 +306,8 @@ class LLMService:
             #     prompt += '""'
             
             # prompt += ')'
-            logger.info("prompt: %s", prompt)
-            return prompt
+            logger.info("product: %s", product)
+            return product, language, requirements
         except Exception as e:
             logger.error(f"提取用户需求时出错: {str(e)}")
             return text

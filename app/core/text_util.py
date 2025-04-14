@@ -1,51 +1,64 @@
 import re
 
-def remove_md_format_to_dots(text):
+def process_text(text):
     """
-    去除 Markdown 格式并将换行和空格转为句号
     
-    参数:
-        text (str): 输入的 Markdown 文本
+    处理内容包括:
+    1. 删除表情符号
+    2. 保留价格信息、货币符号和折扣信息
+    3. 保留商品名称和规格信息
+    4. 删除多余的特殊字符
+    5. 将连续多个换行替换为单个换行
+    6. 将连续多个空格替换为单个空格
+    7. 删除空行
     
-    返回:
-        str: 转换后的文本，所有换行和空格都被转换为句号
+    Args:
+        text (str): 需要处理的促销文本
+        
+    Returns:
+        str: 处理后的文本
     """
-    # 去除图片链接 ![text](url)
-    text = re.sub(r'!\[.*?\]\(.*?\)', '', text)
+    if not text or not isinstance(text, str):
+        return ''
     
-    # 去除链接 [text](url)
-    text = re.sub(r'\[.*?\]\(.*?\)', '', text)
+    # 删除表情符号
+    emoji_pattern = re.compile(
+        "["
+        "\U0001F600-\U0001F64F"  # 表情
+        "\U0001F300-\U0001F5FF"  # 符号和图形
+        "\U0001F680-\U0001F6FF"  # 交通和地图符号
+        "\U0001F700-\U0001F77F"  # 炼金术符号
+        "\U0001F780-\U0001F7FF"  # 几何图形
+        "\U0001F800-\U0001F8FF"  # 补充箭头C
+        "\U0001F900-\U0001F9FF"  # 补充符号和图形
+        "\U0001FA00-\U0001FA6F"  # 象棋符号
+        "\U0001FA70-\U0001FAFF"  # 符号和图形扩展A
+        "\U00002600-\U000026FF"  # 杂项符号
+        "\U00002700-\U000027BF"  # 装饰符号
+        "]", 
+        flags=re.UNICODE
+    )
     
-    # 去除标题符号 # 
-    text = re.sub(r'^#+\s+', '', text, flags=re.MULTILINE)
+    punctuation_pattern = re.compile(r'[*_~`|\\^-]')
     
-    # 去除粗体、斜体 **text** 或 *text* 或 __text__ 或 _text_
-    text = re.sub(r'(\*\*|__)(.*?)(\*\*|__)', r'\2', text)
-    text = re.sub(r'(\*|_)(.*?)(\*|_)', r'\2', text)
+    promo_words = re.compile(r'(超多|补货|速抢|必买|必抢|断货|热卖|限量|独家|上新|返场)')
     
-    # 去除代码块
-    text = re.sub(r'```.*?```', '', text, flags=re.DOTALL)
+    result = text
+    result = emoji_pattern.sub('', result)  
+    result = punctuation_pattern.sub('', result)  
+    result = promo_words.sub('', result) 
     
-    # 去除行内代码
-    text = re.sub(r'`(.*?)`', r'\1', text)
+    result = re.sub(r'\n{2,}', '\n', result)
     
-    # 去除引用符号 >
-    text = re.sub(r'^>\s+', '', text, flags=re.MULTILINE)
+    lines = result.split('\n')
+    processed_lines = []
     
-    text = re.sub(r'^[\*\-+]\s+', '', text, flags=re.MULTILINE)
-    text = re.sub(r'^\d+\.\s+', '', text, flags=re.MULTILINE)
+    for line in lines:
+        line = line.strip()
+        if line:
+            processed_line = re.sub(r'\s+', ' ', line)
+            processed_lines.append(processed_line)
+
+    result = '\n'.join(processed_lines)
     
-    text = re.sub(r'\|.*?\|', '', text)
-    text = re.sub(r'^\s*[-:]+\s*$', '', text, flags=re.MULTILINE)
-    
-    text = re.sub(r'^-{3,}$|^\*{3,}$|^_{3,}$', '', text, flags=re.MULTILINE)
-    
-    text = re.sub(r'\n+', '\n', text)
-    
-    text = re.sub(r'\s+', '.', text)
-    
-    text = re.sub(r'\.+', '.', text)
-    
-    text = text.strip('.')
-    
-    return text
+    return result
