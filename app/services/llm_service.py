@@ -96,7 +96,7 @@ class LLMService:
         self,
         user_query: str,
         web_search_result: str,
-        lauguage: str,
+        language: str,
         category_products,
         num_products: int = 3
     ) :
@@ -105,7 +105,7 @@ class LLMService:
             web_search_result=web_search_result,
             num_products=num_products,
             category_products = category_products,
-            language = lauguage
+            language = language
         )
 
         logger.info(user_message)

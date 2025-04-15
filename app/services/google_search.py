@@ -1,5 +1,5 @@
 import logging
-from typing import Optional
+from typing import Optional, List
 import requests
 from app.core.config import settings
 from app.models.response import ResponseModel
@@ -14,25 +14,30 @@ class GoogleSearchService:
         self,
         query: str,
         site_filter: Optional[str] = None,
-        exclude_sites: Optional[str] = None,
+        exclude_sites: Optional[List] = None,
         language: Optional[str] = None,
         date_restrict: Optional[str] = None,
         num_results: int = 8
     ) -> GoogleSearchResult:
+        
         modified_query = query
-        logger.info(f"query: {query}, site_filter: {site_filter}, exclude_sites: {exclude_sites}, language: {language}, date_restrict: {date_restrict}, num_results: {num_results}")
+        
         if site_filter:
             modified_query += f" {site_filter}"
+        
+        if exclude_sites:
+            for site in exclude_sites:
+                modified_query += f" -site:{site}"
+
+        logger.info(f"query: {query}, site_filter: {site_filter}, exclude_sites: {exclude_sites}, language: {language}, date_restrict: {date_restrict}, num_results: {num_results}, modified_query: {modified_query}")
+
         
         params = {
             "key": settings.GOOGLE_API_KEY,
             "cx": settings.GOOGLE_CX_ID,
-            "q": query,
+            "q": modified_query,  
             "num": num_results
         }
-
-        if exclude_sites:
-            params["excludeTerms"] = exclude_sites
         
         if language:
             params["lr"] = f"lang_{language}"

@@ -16,21 +16,51 @@ logger = logging.getLogger(__name__)
 
 
 EXCLUDED_SITES = [
+        # 社交媒体和问答平台
         "zhihu.com/column",
         "zhihu.com/question",
         "www.bilibili.com",
         "m.bilibili.com",
+        "www.douyin.com",
+        "www.reddit.com",
+        "m.weibo.cn",
+        
+        # 电商平台
         "www.jd.com",
         "www.mi.com",
         "www.taobao.com",
         "www.tmall.com",
-        "www.douyin.com",
-        "www.reddit.com",
-        "m.weibo.cn",
         "my.world.taobao.com",
         "jv-cn.com",
         "www.nike.com.cn/",
-        "sports.sina.com.cn/"
+        
+        # 新闻媒体
+        "sports.sina.com.cn/",
+        
+        # 政府网站
+        "gov.cn",
+        ".gov.",
+        "www.gov.",
+        "moe.gov.cn",
+        "miit.gov.cn",
+        "mfa.gov.cn",
+        
+        # 官方网站
+        "apple.com",
+        "www.apple.com",
+        "support.apple.com",
+        "developer.apple.com",
+        "microsoft.com",
+        "www.microsoft.com",
+        "support.microsoft.com",
+        "docs.microsoft.com",
+        "google.com/about",
+        "about.google",
+
+        "steampowered.com",
+        "hxdsb.com",
+        "sonystyle.com.cn",
+        "getyourguide.com",
     ]
 
 class RecommendationService:
@@ -178,7 +208,8 @@ class RecommendationService:
             search_results = self.google_search.search(
                 query_message,
                 language=language,
-                exclude_sites=' '.join(f'site:{site}' for site in EXCLUDED_SITES)
+                exclude_sites= EXCLUDED_SITES,
+                num_results=5
             )
             logger.info(f"Google搜索结果: {search_results}")
             
@@ -262,7 +293,7 @@ class RecommendationService:
             query_message, language, requirements = await self.llm_service.extract_user_needs(user_query)
             # 并发执行网页内容获取和商品库查询
             web_search_results, category_products = await asyncio.gather(
-                self._fetch_web_content(query_message + " 推荐", language="zh-CN"),
+                self._fetch_web_content(query_message + " 购买 推荐", language="zh-CN"),
                 self.get_category_products(query=query_message)
             )
 
@@ -273,7 +304,7 @@ class RecommendationService:
                 user_query=user_query,
                 web_search_result=web_search_results,
                 num_products=num_products,
-                lauguage=language,
+                language=language,
                 category_products=category_products
             )
         except Exception as e:
