@@ -207,7 +207,7 @@ class RecommendationService:
             logger.info(f"执行Google搜索: {query_message}")
             search_results = self.google_search.search(
                 query_message,
-                language=language,
+                # language=language,
                 exclude_sites= EXCLUDED_SITES,
                 num_results=5
             )
