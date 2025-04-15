@@ -150,7 +150,7 @@ class RecommendationService:
         self,
         query: Optional[str] = None,
         current: int = 1,
-        page_size: int = 5
+        page_size: int = 8
     ) -> List[List[str]]:
         response = await ProductClient.combine_search(
             query=query,
@@ -238,7 +238,7 @@ class RecommendationService:
                 if crawl_response.success:
                     for result in crawl_response.results:
                         if result.success and result.content and len(result.content) > 50:
-                            web_search_results.append(process_text(result.content[50:5000]))
+                            web_search_results.append(process_text(result.content[50:8000]))
                 else:
                     logger.error(f"爬虫服务调用失败: {crawl_response.message}")
                     
