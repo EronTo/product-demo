@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, Dict, Tuple
 from app.models.product import ProductRecommendation
 from app.core.config import settings
 import logging
@@ -10,7 +10,7 @@ from app.services.llm_service import LLMService
 from app.services.crawler_client import crawler_client  # 导入新的爬虫客户端
 import asyncio
 from app.core.text_util import process_text
-from time import perf_counter
+from time import perf_counter, time
 
 logger = logging.getLogger(__name__)
 
@@ -42,11 +42,46 @@ class RecommendationService:
         """Initialize the RecommendationService with required dependencies."""
         self.llm_service = LLMService()
         self.google_search = GoogleSearchService()
+        self._category_products_cache: Dict[str, Tuple[List[List[str]], float]] = {}  # {query: (results, timestamp)}
+        self._cache_ttl = 60 * 60 * 24 * 10  # 10天  
+        self._max_cache_size = 500
+        self._cache_access_history = []  
     
     async def init(self):
-        """Initialize async resources."""
-        # 不再需要初始化本地爬虫池
         pass
+        
+    def _clean_expired_cache(self):
+        current_time = time()
+        expired_keys = []
+        
+        for key, (_, timestamp) in self._category_products_cache.items():
+            if current_time - timestamp > self._cache_ttl:
+                expired_keys.append(key)
+                
+        for key in expired_keys:
+            del self._category_products_cache[key]
+            if key in self._cache_access_history:
+                self._cache_access_history.remove(key)
+                
+        if expired_keys:
+            logger.info(f"已清理 {len(expired_keys)} 个过期缓存项")
+    
+    def _update_cache_access_history(self, cache_key: str):
+        if cache_key in self._cache_access_history:
+            self._cache_access_history.remove(cache_key)
+            
+        self._cache_access_history.append(cache_key)
+    
+    def _apply_lru_policy(self):
+        """应用LRU（最近最少使用）策略删除缓存项"""
+        if not self._cache_access_history:
+            return
+            
+        oldest_key = self._cache_access_history.pop(0)
+        
+        if oldest_key in self._category_products_cache:
+            del self._category_products_cache[oldest_key]
+            logger.info(f"LRU策略：已删除最久未使用的缓存项 {oldest_key}")
     
     async def get_product_recommendations(
         user_query: str, 
@@ -163,7 +198,7 @@ class RecommendationService:
                 if crawl_response.success:
                     for result in crawl_response.results:
                         if result.success and result.content and len(result.content) > 100:
-                            web_search_results.append(process_text(result.content[:10000]))
+                            web_search_results.append(process_text(result.content[:5000]))
                 else:
                     logger.error(f"爬虫服务调用失败: {crawl_response.message}")
                     
@@ -183,17 +218,38 @@ class RecommendationService:
     ) -> List[List[str]]:
         start_time = perf_counter()
         try:
+            self._clean_expired_cache()
+            
+            cache_key = f"{query}_{current}_{page_size}"
+            
+            if cache_key in self._category_products_cache:
+                cached_results, timestamp = self._category_products_cache[cache_key]
+                if time() - timestamp < self._cache_ttl:
+                    self._update_cache_access_history(cache_key)
+                    logger.info(f"使用缓存的商品数据: {cache_key}")
+                    return cached_results
+            
             response = await ProductClient.combine_search(
                 query=query,
                 current=current,
                 page_size=page_size
             )
+            
+            results = []
             if response and response.data and response.data.records:
-                return [
+                results = [
                     [product.productName, product.sellPriceCur, str(product.sellPrice)]
                     for product in response.data.records
                 ]
-            return []
+            
+            if len(self._category_products_cache) >= self._max_cache_size:
+                self._apply_lru_policy()
+                
+            # 更新访问历史
+            self._category_products_cache[cache_key] = (results, time())
+            self._update_cache_access_history(cache_key)
+            
+            return results
         finally:
             end_time = perf_counter()
             logger.info(f"get_category_products执行时间: {end_time - start_time:.2f}秒")
