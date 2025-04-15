@@ -8,6 +8,7 @@ from app.services.recommendation import RecommendationService
 from app.core.config import settings
 from app.core.response_utils import ResponseUtils
 import json
+from io import StringIO
 
 logger = logging.getLogger(__name__)
 
@@ -38,9 +39,14 @@ async def chat_completion_proxy(request: Request):
         )
 
         def generate():
+            full_text = StringIO()
             try:
                 for chunk in response:
-                    yield f"data: {json.dumps(chunk.model_dump())}\n\n"
+                    content_piece = chunk.model_dump().get("choices", [{}])[0].get("delta", {}).get("content", "")
+                    if content_piece:
+                        full_text.write(content_piece)
+                        yield f"data: {json.dumps({'choices': [{'delta': {'content': content_piece}}]})}\n\n"
+                logger.info(f"full content: {full_text.getvalue()}")
                 yield "data: [DONE]\n\n"
             except Exception as e:
                 logger.error(f"stream response error: {str(e)}", exc_info=True)
@@ -51,7 +57,6 @@ async def chat_completion_proxy(request: Request):
     except Exception as e:
         logger.error(f"处理请求失败: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
-
 @router.post("/chat/completion")
 async def web_recommendations(
     user_query: str,
