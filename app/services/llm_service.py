@@ -48,15 +48,20 @@ class LLMService:
         self,
         user_query: str,
         web_search_result: str,
+        category_products,
+        language,
         num_products: int = 3,
-        stream: bool = False
+        stream: bool = False,
     ) :
         try:
-            user_message = ProductPrompts.SELECT_PRODUCTS_FROM_WEB.format(
+            user_message = ProductPrompts.SELECT_PRODUCTS_FROM_WEB_3.format(
                 user_query=user_query,
                 web_search_result=web_search_result,
                 num_products=num_products,
+                category_products = category_products,
+                language = language
             )
+
             logger.info(user_message)
             
             if not stream:

@@ -172,11 +172,15 @@ class RecommendationService:
         stream: bool = True
     ):
         try:
-            # 提取推荐词
-            query_message = await self.llm_service.extract_user_needs(user_query)
-            
-            # 获取网页内容
-            web_search_results = await self._fetch_web_content(query_message)
+            query_message, language, requirements = await self.llm_service.extract_user_needs(user_query)
+            # 并发执行网页内容获取和商品库查询
+            web_search_results, category_products = await asyncio.gather(
+                self._fetch_web_content(query_message + " 购买 推荐", language="zh-CN"),
+                self.get_category_products(query=query_message)
+            )
+
+            print("web_search_results", web_search_results)
+            print("category_products", category_products)
             
             # 调用LLM处理
             if stream:
@@ -186,13 +190,18 @@ class RecommendationService:
                     user_query=user_query,
                     web_search_result=web_search_results,
                     num_products=num_products,
+                    language=language,
+                    category_products=category_products,
                     stream=True
                 )
             else:
                 recommendations = await self.llm_service.select_best_products_from_web(
                     user_query=user_query,
                     web_search_result=web_search_results,
-                    num_products=num_products
+                    num_products=num_products,
+                    language=language,
+                    category_products=category_products,
+                    stream=False
                 )
                 return recommendations
             
