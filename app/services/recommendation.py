@@ -223,13 +223,13 @@ class RecommendationService:
                 crawl_response = await crawler_client.crawl_fastest(
                     urls=urls,
                     count=3,
-                    min_word_count=2000
+                    min_word_count=800
                 )
                 
                 if crawl_response.success:
                     for result in crawl_response.results:
-                        if result.success and result.content and len(result.content) > 100:
-                            web_search_results.append(process_text(result.content[:5000]))
+                        if result.success and result.content and len(result.content) > 50:
+                            web_search_results.append(process_text(result.content[50:5000]))
                 else:
                     logger.error(f"爬虫服务调用失败: {crawl_response.message}")
                     
