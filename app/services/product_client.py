@@ -34,7 +34,8 @@ class ProductClient:
 
             try:
                 headers = {
-                    "Referer": settings.API_REFERER
+                    "Referer": settings.API_REFERER,
+                    "accept-language": "zh_CN"
                 }
                 response = requests.get(url, params=params, headers=headers)
                 if response.status_code == 200:

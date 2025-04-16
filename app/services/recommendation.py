@@ -146,26 +146,6 @@ class RecommendationService:
             logger.error(f"Error in get_product_recommendations: {str(e)}")
             raise
 
-    async def get_category_products(
-        self,
-        query: Optional[str] = None,
-        current: int = 1,
-        page_size: int = 200
-    ) -> List[List[str]]:
-        response = await ProductClient.combine_search(
-            query=query,
-            current=current,
-            page_size=page_size
-        )
-        if response and response.data and response.data.records:
-            records = response.data.records[:200]
-            return [
-                [product.productName, product.sellPriceCur, str(product.sellPrice)]
-                for product in records
-            ]
-        return []
-
-
     async def recommendations_web(
         self,
         user_query: str,
@@ -255,8 +235,8 @@ class RecommendationService:
         self,
         query: Optional[str] = None,
         current: int = 1,
-        page_size: int = 5
-    ) -> List[List[str]]:
+        page_size: int = 200
+    ) -> str:
         start_time = perf_counter()
         try:
             self._clean_expired_cache()
@@ -268,7 +248,7 @@ class RecommendationService:
                 if time() - timestamp < self._cache_ttl:
                     self._update_cache_access_history(cache_key)
                     logger.info(f"使用缓存的商品数据: {cache_key}")
-                    return cached_results
+                    return cached_results  
             
             response = await ProductClient.combine_search(
                 query=query,
@@ -276,21 +256,21 @@ class RecommendationService:
                 page_size=page_size
             )
             
-            results = []
+            compact_format = ""
             if response and response.data and response.data.records:
-                results = [
-                    [product.productName, product.sellPriceCur, str(product.sellPrice)]
-                    for product in response.data.records
-                ]
+                records = response.data.records[:200]
+                compact_format = ",".join([
+                    f"{product.productName}:{max(1, int(float(product.sellPrice)))}"
+                    for product in records
+                ])
             
             if len(self._category_products_cache) >= self._max_cache_size:
                 self._apply_lru_policy()
                 
-            # 更新访问历史
-            self._category_products_cache[cache_key] = (results, time())
+            self._category_products_cache[cache_key] = (compact_format, time())
             self._update_cache_access_history(cache_key)
             
-            return results
+            return compact_format
         finally:
             end_time = perf_counter()
             logger.info(f"get_category_products执行时间: {end_time - start_time:.2f}秒")
