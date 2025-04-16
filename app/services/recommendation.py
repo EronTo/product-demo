@@ -150,7 +150,7 @@ class RecommendationService:
         self,
         query: Optional[str] = None,
         current: int = 1,
-        page_size: int = 8
+        page_size: int = 200
     ) -> List[List[str]]:
         response = await ProductClient.combine_search(
             query=query,
@@ -158,9 +158,10 @@ class RecommendationService:
             page_size=page_size
         )
         if response and response.data and response.data.records:
+            records = response.data.records[:200]
             return [
                 [product.productName, product.sellPriceCur, str(product.sellPrice)]
-                for product in response.data.records
+                for product in records
             ]
         return []
 
