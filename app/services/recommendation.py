@@ -258,7 +258,7 @@ class RecommendationService:
             
             compact_format = ""
             if response and response.data and response.data.records:
-                records = response.data.records[:200]
+                records = response.data.records[:100]
                 compact_format = ",".join([
                     f"{product.productName}:{max(1, int(float(product.sellPrice)))}"
                     for product in records
