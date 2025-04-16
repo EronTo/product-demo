@@ -212,8 +212,8 @@ class RecommendationService:
             try:
                 crawl_response = await crawler_client.crawl_fastest(
                     urls=urls,
-                    count=3,
-                    min_word_count=800
+                    count=2,
+                    min_word_count=1000
                 )
                 
                 if crawl_response.success:
