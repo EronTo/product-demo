@@ -27,13 +27,11 @@ async def combine_search(
         CombineSearchResponse: 组合搜索响应
     """
     try:
-        # 参数验证
         if current < 1:
             raise HTTPException(status_code=400, detail="当前页码必须大于0")
         if page_size < 1:
             raise HTTPException(status_code=400, detail="每页数量必须大于0")
             
-        # 调用服务层处理搜索请求
         response = await RecommendationService.combine_search(
             query=query,
             current=current,

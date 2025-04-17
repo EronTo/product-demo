@@ -57,6 +57,7 @@ async def chat_completion_proxy(request: Request):
     except Exception as e:
         logger.error(f"处理请求失败: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+
 @router.post("/chat/completion")
 async def web_recommendations(
     user_query: str,
@@ -100,27 +101,21 @@ async def get_product_recommendations(
     )
 ):
     try:
-        # Log request
         logger.info(f"Received request for product recommendations: query='{user_query}'")
         
-        # Validate nums_return
         if nums_return is not None and nums_return <= 0:
             raise HTTPException(status_code=400, detail="nums_return must be a positive integer")
             
-        # Get recommendations from service
         recommendations = await recommendation_service.get_product_recommendations(
             user_query=user_query,
             web_search=web_search,
             nums_return=nums_return
         )
         
-        # 返回响应数据
         return ResponseUtils.success(data=recommendations)
         
     except Exception as e:
-        # Log error
         logger.error(f"Error processing recommendation request: {str(e)}")
-        # Re-raise as HTTP exception with unified error format
         raise HTTPException(
             status_code=500, 
             detail=f"Error processing recommendation request: {str(e)}"

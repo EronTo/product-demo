@@ -1,87 +1,77 @@
-from typing import List, Optional
+from typing import List, Optional, Any
 from pydantic import BaseModel, Field
 
 class MainImage(BaseModel):
-    """商品主图模型"""
-    width: Optional[int] = None
-    height: Optional[int] = None
-    url: Optional[str] = None
+    width: Optional[Any] = None
+    height: Optional[Any] = None
+    url: Optional[Any] = None
 
 class MainVideo(BaseModel):
-    """商品视频模型"""
-    videoUrl: Optional[str] = None
-    vodUrl: Optional[str] = None
-    previewUrl: Optional[str] = None
-    width: Optional[str] = None
-    height: Optional[str] = None
+    videoUrl: Optional[Any] = None
+    vodUrl: Optional[Any] = None
+    previewUrl: Optional[Any] = None
+    width: Optional[Any] = None
+    height: Optional[Any] = None
 
 class ImageCollection(BaseModel):
-    """商品图片集合模型"""
-    width: Optional[int] = None
-    height: Optional[int] = None
-    url: Optional[str] = None
+    width: Optional[Any] = None
+    height: Optional[Any] = None
+    url: Optional[Any] = None
 
 class ImgDetail(BaseModel):
-    """商品详情图模型"""
-    width: Optional[int] = None
-    height: Optional[int] = None
-    url: Optional[str] = None
+    width: Optional[Any] = None
+    height: Optional[Any] = None
+    url: Optional[Any] = None
 
 class OptionValue(BaseModel):
-    """商品选项值模型"""
-    value: Optional[str] = None
-    image: Optional[str] = None
-    imageWidth: Optional[str] = None
-    imageHeight: Optional[str] = None
+    value: Optional[Any] = None
+    image: Optional[Any] = None
+    imageWidth: Optional[Any] = None
+    imageHeight: Optional[Any] = None
 
 class ProductOption(BaseModel):
-    """商品选项模型"""
-    name: Optional[str] = None
-    type: Optional[int] = None
+    name: Optional[Any] = None
+    type: Optional[Any] = None
     optionValues: Optional[List[OptionValue]] = None
 
 class ProductAttribute(BaseModel):
-    """商品属性模型"""
-    name: Optional[str] = None
-    value: Optional[str] = None
+    name: Optional[Any] = None
+    value: Optional[Any] = None
 
 class Product(BaseModel):
-    """商品模型"""
-    shopCode: Optional[str] = None
-    productCode: Optional[str] = None
-    productName: Optional[str] = None
-    tenantCode: Optional[str] = None
-    brandName: Optional[str] = None
+    shopCode: Optional[Any] = None
+    productCode: Optional[Any] = None
+    productName: Optional[Any] = None
+    tenantCode: Optional[Any] = None
+    brandName: Optional[Any] = None
     mainImg: Optional[List[MainImage]] = None
     mainVideo: Optional[List[MainVideo]] = None
     imgCollection: Optional[List[ImageCollection]] = None
-    textDetail: Optional[str] = None
+    textDetail: Optional[Any] = None
     imgDetail: Optional[List[ImgDetail]] = None
-    categoryId: Optional[int] = None
+    categoryId: Optional[Any] = None
     productOptions: Optional[List[ProductOption]] = None
     productAttrs: Optional[List[ProductAttribute]] = None
-    sourcePlatform: Optional[str] = None
-    platformUrl: Optional[str] = None
-    platformProductId: Optional[str] = None
-    skuCode: Optional[str] = None
-    sellPriceCur: Optional[str] = None
-    sellPrice: Optional[str] = None
-    targetSellPrice: Optional[str] = None
-    targetSellCur: Optional[str] = None
+    sourcePlatform: Optional[Any] = None
+    platformUrl: Optional[Any] = None
+    platformProductId: Optional[Any] = None
+    skuCode: Optional[Any] = None
+    sellPriceCur: Optional[Any] = None
+    sellPrice: Optional[Any] = None
+    targetSellPrice: Optional[Any] = None
+    targetSellCur: Optional[Any] = None
 
 class SearchData(BaseModel):
-    """搜索数据模型"""
     records: Optional[List[Product]] = None
-    total: Optional[int] = None
-    pageSize: Optional[int] = None
-    current: Optional[int] = None
-    totalPages: Optional[int] = None
+    total: Optional[Any] = None
+    pageSize: Optional[Any] = None
+    current: Optional[Any] = None
+    totalPages: Optional[Any] = None
 
 class CombineSearchResponse(BaseModel):
-    """组合搜索响应模型"""
-    code: Optional[int] = None
-    message: Optional[str] = None
+    code: Optional[Any] = None
+    message: Optional[Any] = None
     data: Optional[SearchData] = None
-    traceId: Optional[str] = None
-    placeholder: Optional[str] = None
+    traceId: Optional[Any] = None
+    placeholder: Optional[Any] = None
     success: Optional[bool] = None

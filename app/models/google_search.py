@@ -2,7 +2,6 @@ from typing import List, Dict, Any, Optional
 from pydantic import BaseModel, Field, root_validator
 
 class URL(BaseModel):
-    """Google搜索URL模板信息"""
     type: Optional[str] = ""
     template: Optional[str] = ""
     
@@ -10,7 +9,6 @@ class URL(BaseModel):
         extra = "ignore"
 
 class Query(BaseModel):
-    """查询信息"""
     title: Optional[str] = ""
     totalResults: Optional[str] = "0"
     searchTerms: Optional[str] = ""
@@ -25,14 +23,12 @@ class Query(BaseModel):
         extra = "ignore"
 
 class Context(BaseModel):
-    """搜索上下文"""
     title: Optional[str] = ""
     
     class Config:
         extra = "ignore"
 
 class SearchInformation(BaseModel):
-    """搜索结果信息"""
     searchTime: Optional[float] = 0.0
     formattedSearchTime: Optional[str] = ""
     totalResults: Optional[str] = "0"
@@ -42,7 +38,6 @@ class SearchInformation(BaseModel):
         extra = "ignore"
 
 class PageMap(BaseModel):
-    """页面映射信息，包含问题、回答和人物等数据"""
     question: Optional[List[Dict[str, Any]]] = Field(default_factory=list)
     answer: Optional[List[Dict[str, Any]]] = Field(default_factory=list)
     person: Optional[List[Dict[str, Any]]] = Field(default_factory=list)
@@ -76,7 +71,6 @@ class GoogleSearchResult(BaseModel):
     
     @root_validator(pre=True)
     def ensure_required_fields(cls, values):
-        # 确保必要字段存在
         if values.get("url") is None:
             values["url"] = {"type": "", "template": ""}
         

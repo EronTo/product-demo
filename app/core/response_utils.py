@@ -6,7 +6,6 @@ from app.core.context import get_request_id
 T = TypeVar('T')
 
 class ResponseUtils:
-    """统一的响应工具类"""
 
     @staticmethod
     def success(data: T, code: int = 0) -> ResponseModel[T]:

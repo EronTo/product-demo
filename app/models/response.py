@@ -3,7 +3,6 @@ from pydantic import BaseModel, Field
 from pydantic.generics import GenericModel
 
 
-# 定义泛型类型变量
 T = TypeVar('T')
 
 class ResponseModel(GenericModel, Generic[T]):
@@ -20,10 +19,4 @@ class ResponseModel(GenericModel, Generic[T]):
     traceId: str = Field(..., description="请求跟踪ID")
 
 class ErrorResponse(BaseModel):
-    """
-    错误响应模型
-    
-    属性:
-        detail: 错误详情
-    """
     detail: str = Field(..., description="错误详情")

@@ -1,17 +1,10 @@
 import logging
 import logging.config
-import logging.handlers
-import os
 from pathlib import Path
-import sys
-import time
 import threading
-from concurrent_log_handler import ConcurrentRotatingFileHandler
-from logging.handlers import TimedRotatingFileHandler
 from app.core.context import get_request_id
 from app.core.log_filters import TraceIDFilter
 
-# 使用单例模式确保日志只初始化一次
 _LOGGER_INITIALIZED = False
 _LOGGER_LOCK = threading.Lock()
 
@@ -36,7 +29,6 @@ class CustomFormatter(logging.Formatter):
     }
 
     def format(self, record):
-        # 添加trace_id到日志记录中
         if not hasattr(record, 'trace_id'):
             trace_id = get_request_id()
             record.trace_id = trace_id if trace_id else '-'
@@ -58,19 +50,15 @@ def setup_logging(log_level=logging.INFO, log_to_file=True):
     """
     global _LOGGER_INITIALIZED
     
-    # 使用锁确保线程安全
     with _LOGGER_LOCK:
         if _LOGGER_INITIALIZED:
             return logging.getLogger(__name__)
         
-        # 创建logs目录（如果不存在）
         logs_dir = Path("logs")
         logs_dir.mkdir(parents=True, exist_ok=True)
         
-        # 使用固定的日志文件名，TimedRotatingFileHandler会自动添加日期后缀
         log_file = logs_dir / "app.log"
         
-        # 基本配置
         config = {
             "version": 1,
             "disable_existing_loggers": False,
@@ -118,10 +106,8 @@ def setup_logging(log_level=logging.INFO, log_to_file=True):
             },
         }
         
-        # 添加文件处理器（如果需要）
         if log_to_file:
             try:
-                # 使用TimedRotatingFileHandler实现按天轮换日志
                 config["handlers"]["file"] = {
                     "class": "logging.handlers.TimedRotatingFileHandler",
                     "level": log_level,
@@ -131,10 +117,9 @@ def setup_logging(log_level=logging.INFO, log_to_file=True):
                     "interval": 1,  # 每1天轮换一次
                     "backupCount": 10,  # 保留最近10天的日志
                     "encoding": "utf8",
-                    "delay": True,  # 延迟创建文件直到第一次写入
+                    "delay": True, 
                 }
             except ImportError:
-                # 如果导入失败，使用标准的TimedRotatingFileHandler
                 config["handlers"]["file"] = {
                     "class": "logging.handlers.TimedRotatingFileHandler",
                     "level": log_level,
@@ -144,36 +129,30 @@ def setup_logging(log_level=logging.INFO, log_to_file=True):
                     "interval": 1,  # 每1天轮换一次
                     "backupCount": 10,  # 保留最近10天的日志
                     "encoding": "utf8",
-                    "delay": True,  # 延迟创建文件直到第一次写入
+                    "delay": True, 
                 }
             
-            # 确保所有logger都使用文件处理器
             config["loggers"][""]["handlers"].append("file")
             config["loggers"]["uvicorn"]["handlers"].append("file")
             config["loggers"]["uvicorn.error"]["handlers"].append("file")
             config["loggers"]["uvicorn.access"]["handlers"].append("file")
         
-        # 应用配置
         logging.config.dictConfig(config)
         
-        # 为控制台处理器添加彩色格式化器
         console_handler = logging.getLogger().handlers[0]
         console_handler.setFormatter(CustomFormatter())
         
-        # 为所有处理器添加TraceIDFilter
         trace_filter = TraceIDFilter()
         for logger_name in config["loggers"]:
             logger_obj = logging.getLogger(logger_name)
             for handler in logger_obj.handlers:
                 handler.addFilter(trace_filter)
         
-        # 记录配置信息
         logger = logging.getLogger(__name__)
         logger.info(f"Logging initialized with level: {logging.getLevelName(log_level)}")
         if log_to_file:
             logger.info(f"Logging to file: {log_file}")
         
-        # 标记日志系统已初始化
         _LOGGER_INITIALIZED = True
         
         return logger

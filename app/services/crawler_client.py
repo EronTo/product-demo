@@ -11,7 +11,6 @@ logger = logging.getLogger(__name__)
 
 
 class CrawlRequest(BaseModel):
-    """爬虫请求模型"""
     urls: List[str] = Field(..., description="要爬取的URL列表")
     min_word_count: Optional[int] = Field(100, description="最小字数要求")
     count: Optional[int] = Field(1, description="需要返回的结果数量")
